@@ -1,0 +1,21 @@
+{
+  "extends": "solhint:recommended",
+  "plugins": ["prettier"],
+  "rules": {
+    "code-complexity": ["error", 8],
+    "const-name-snakecase": "off",
+    "compiler-version": ["error", "^0.8.0"],
+    "constructor-syntax": "error",
+    "mark-callable-contracts": "off",
+    "func-visibility": ["warn", { "ignoreConstructors": true }],
+    "not-rely-on-time": "off",
+    "prettier/prettier": [
+      "error",
+      {
+        "endOfLine": "auto"
+      }
+    ],
+    "reason-string": ["warn", { "maxLength": 64 }],
+    "max-line-length": ["error", 120]
+  }
+}

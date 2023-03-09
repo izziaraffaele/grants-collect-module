@@ -1,0 +1,16 @@
+# Commands to start on workspace startup
+tasks:
+  - name: Setup & Build
+    before: |
+      curl -L https://foundry.paradigm.xyz | bash
+      source /home/gitpod/.bashrc
+      foundryup
+      cp .env.example .env
+    init: forge install & yarn install
+    command: forge test
+
+# Ports to expose on workspace startup
+vscode:
+  extensions:
+    - esbenp.prettier-vscode
+    - juanblanco.solidity
