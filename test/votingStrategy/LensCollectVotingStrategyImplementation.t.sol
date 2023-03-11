@@ -2,10 +2,12 @@
 pragma solidity ^0.8.10;
 
 import "../BaseSetup.sol";
-
-import "./LensCollectVotingStrategyImplementation.base.sol";
+import {MockRoundImplementation} from "../mocks/MockRoundImplementation.sol";
+import {LensCollectVotingStrategyImplementationBase} from "./LensCollectVotingStrategyImplementation.base.sol";
 import {Events} from "../../src/utils/Events.sol";
 import {Errors, LensErrors} from "../../src/utils/Errors.sol";
+import {CollectNFTData, IGitcoinCollectModule} from "../../src/interfaces/IGitcoinCollectModule.sol";
+import {LensCollectVotingStrategyImplementation} from "../../src/votingStrategy/LensCollectVotingStrategyImplementation.sol";
 
 contract LensCollectVotingStrategyImplementation_Init is LensCollectVotingStrategyImplementationBase {
   constructor() LensCollectVotingStrategyImplementationBase() {
@@ -165,7 +167,7 @@ contract LensCollectVotingStrategyImplementation_LensVote is LensCollectVotingSt
 
     vm.mockCall(
       gitcoinCollectModule,
-      abi.encodeWithSelector(GitcoinCollectModule.getCollectData.selector),
+      abi.encodeWithSelector(IGitcoinCollectModule.getCollectData.selector),
       abi.encode(CollectNFTData({currency: exampleVoteData.token, amount: exampleVoteData.amount}))
     );
   }

@@ -2,10 +2,13 @@
 
 pragma solidity ^0.8.10;
 
-import "./GitcoinCollectModule.base.sol";
+import "./BaseSetup.sol";
+import {GitcoinCollectModuleBase} from "./GitcoinCollectModule.base.sol";
+import {MockRoundImplementation} from "./mocks/MockRoundImplementation.sol";
+
 import "../src/interfaces/IGitcoinCollectModule.sol";
 import "../src/utils/MetaPtr.sol";
-import "../src/GitcoinCollectModule.sol";
+import {GitcoinCollectModule} from "../src/GitcoinCollectModule.sol";
 
 /////////
 // Publication Creation with GitcoinCollectModule

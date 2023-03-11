@@ -7,8 +7,8 @@ import {MockRoundImplementation} from "../mocks/MockRoundImplementation.sol";
 
 import "../../src/interfaces/IGitcoinCollectModule.sol";
 import "../../src/utils/MetaPtr.sol";
-import "../../src/votingStrategy/LensCollectVotingStrategyImplementation.sol";
-import "../../src/GitcoinCollectModule.sol";
+import {LensCollectVotingStrategyImplementation} from "../../src/votingStrategy/LensCollectVotingStrategyImplementation.sol";
+import {GitcoinCollectModule} from "../../src/GitcoinCollectModule.sol";
 
 contract LensCollectVotingStrategyImplementationBase is BaseSetup {
   struct VoteData {
