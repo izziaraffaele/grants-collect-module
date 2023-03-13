@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
+import "forge-std/Test.sol";
 import "../BaseSetup.sol";
 import {MockRoundImplementation} from "../mocks/MockRoundImplementation.sol";
 import {LensCollectVotingStrategyImplementationBase} from "./LensCollectVotingStrategyImplementation.base.sol";
 import {Events} from "../../src/utils/Events.sol";
 import {Errors, LensErrors} from "../../src/utils/Errors.sol";
-import {CollectNFTData, IGitcoinCollectModule} from "../../src/interfaces/IGitcoinCollectModule.sol";
+import {IGitcoinCollectModule} from "../../src/interfaces/IGitcoinCollectModule.sol";
 import {LensCollectVotingStrategyImplementation} from "../../src/votingStrategy/LensCollectVotingStrategyImplementation.sol";
 
 contract LensCollectVotingStrategyImplementation_Init is LensCollectVotingStrategyImplementationBase {
@@ -30,8 +31,7 @@ contract LensCollectVotingStrategyImplementation_Init is LensCollectVotingStrate
     LensCollectVotingStrategyImplementation(votingStrategy).init();
   }
 
-  function testInitializeShouldSetHubAndCollectModule() public virtual {
-    assertEq(LensCollectVotingStrategyImplementation(votingStrategy).lensHub(), hubProxyAddr);
+  function testInitializeShouldSetCollectModule() public virtual {
     assertEq(LensCollectVotingStrategyImplementation(votingStrategy).collectModule(), gitcoinCollectModule);
   }
 }
@@ -120,6 +120,7 @@ contract LensCollectVotingStrategyImplementation_LensVote is LensCollectVotingSt
   uint256 pubId;
 
   constructor() LensCollectVotingStrategyImplementationBase() {
+    exampleInitData.recipient = publisher;
     publisherProfileId = hub.createProfile(
       DataTypes.CreateProfileData({
         to: publisher,
@@ -154,7 +155,9 @@ contract LensCollectVotingStrategyImplementation_LensVote is LensCollectVotingSt
       })
     );
 
-    vm.mockCall(hubProxyAddr, abi.encodeWithSelector(LensHub.getCollectNFT.selector), abi.encode(address(nft)));
+    currency.mint(user, 1 ether);
+    vm.prank(user);
+    currency.approve(gitcoinCollectModule, type(uint256).max);
   }
 
   function setUp() public virtual {
@@ -167,46 +170,79 @@ contract LensCollectVotingStrategyImplementation_LensVote is LensCollectVotingSt
 
     vm.mockCall(
       gitcoinCollectModule,
-      abi.encodeWithSelector(IGitcoinCollectModule.getCollectData.selector),
-      abi.encode(CollectNFTData({currency: exampleVoteData.token, amount: exampleVoteData.amount}))
+      abi.encodeWithSelector(IGitcoinCollectModule.getCollectNFTAmount.selector),
+      abi.encode(exampleVoteData.amount)
     );
   }
 
-  function roundVoteWithRevert(bytes4 expectedError) public virtual {
-    vm.expectRevert(expectedError);
+  function roundVote() public {
     MockRoundImplementation(roundImplementation).vote(getEncodedVotes());
+  }
+
+  function hubVote() public {
+    hub.collect(publisherProfileId, pubId, abi.encode(exampleInitData.currency, 1 ether));
   }
 
   function testCannotVoteTwiceWithSameNFT() public virtual {
-    nft.mint(user, 1);
-
     vm.startPrank(user);
-    MockRoundImplementation(roundImplementation).vote(getEncodedVotes());
-    roundVoteWithRevert(Errors.VoteCasted.selector);
+    hubVote();
+    vm.expectRevert(Errors.VoteCasted.selector);
+    roundVote();
     vm.stopPrank();
   }
 
+  function testCannotVoteWithNonExistingNFT() public virtual {
+    vm.prank(user);
+    vm.expectRevert(Errors.VoteInvalid.selector);
+    roundVote();
+  }
+
+  function testCannotVoteWithNonExistingNFTId() public virtual {
+    vm.prank(user);
+    hubVote();
+
+    exampleVoteData.collectTokenId = 2;
+
+    vm.prank(user);
+    vm.expectRevert("ERC721: owner query for nonexistent token");
+    roundVote();
+  }
+
   function testCannotVoteWithInvalidAmount() public virtual {
-    nft.mint(user, 1);
+    // mock the vote call to prevent calls from hub
+    vm.mockCall(roundImplementation, abi.encodeWithSelector(MockRoundImplementation.vote.selector), abi.encode());
+
+    vm.prank(user);
+    hubVote();
 
     exampleVoteData.amount = 100 ether;
 
+    // clear the mock so that we can call the round implementation ourself
+    vm.clearMockedCalls();
+
+    vm.expectRevert(Errors.VoteInvalid.selector);
     vm.prank(user);
-    roundVoteWithRevert(Errors.VoteInvalid.selector);
+    roundVote();
   }
 
   function testCannotVoteWithInvalidToken() public virtual {
-    nft.mint(user, 1);
-
-    exampleVoteData.token = address(0);
+    // mock the vote call to prevent calls from hub
+    vm.mockCall(roundImplementation, abi.encodeWithSelector(MockRoundImplementation.vote.selector), abi.encode());
 
     vm.prank(user);
-    roundVoteWithRevert(Errors.VoteInvalid.selector);
+    hubVote();
+
+    exampleVoteData.token = address(0xdead);
+
+    // clear the mock so that we can call the round implementation ourself
+    vm.clearMockedCalls();
+
+    vm.expectRevert(Errors.VoteInvalid.selector);
+    vm.prank(user);
+    roundVote();
   }
 
   function testVoteEmitsExpectedEvents() public virtual {
-    nft.mint(user, 1);
-
     vm.expectEmit(true, true, true, true, votingStrategy);
 
     emit Events.Voted(
@@ -219,6 +255,6 @@ contract LensCollectVotingStrategyImplementation_LensVote is LensCollectVotingSt
     );
 
     vm.prank(user);
-    MockRoundImplementation(roundImplementation).vote(getEncodedVotes());
+    hubVote();
   }
 }

@@ -43,10 +43,10 @@ contract LensCollectVotingStrategyFactory is OwnableUpgradeable {
    * @notice Clones QuadraticFundingVotingStrategyImplementation and deploys a contract
    * and emits an event
    */
-  function create(address lensHub, address collectModule) external returns (address) {
+  function create(address collectModule) external returns (address) {
     address clone = ClonesUpgradeable.clone(votingContract);
     emit VotingContractCreated(clone, votingContract);
-    LensCollectVotingStrategyImplementation(clone).initialize(lensHub, collectModule);
+    LensCollectVotingStrategyImplementation(clone).initialize(collectModule);
 
     return clone;
   }

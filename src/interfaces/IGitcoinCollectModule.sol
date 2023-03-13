@@ -5,6 +5,7 @@ import {MetaPtr} from "../utils/MetaPtr.sol";
 
 struct ProfilePublicationData {
   address roundAddress;
+  address collectToken;
   address currency;
   uint96 currentCollects;
   address recipient;
@@ -21,17 +22,12 @@ struct RoundApplicationData {
   MetaPtr applicationMetaPtr;
 }
 
-struct CollectNFTData {
-  uint256 amount;
-  address currency;
-}
-
 interface IGitcoinCollectModule is ICollectModule {
-  function getPublicationData(uint256 profileId, uint256 pubId) external view returns (ProfilePublicationData memory);
-
-  function getCollectData(
+  function getCollectNFTAmount(
     uint256 profileId,
     uint256 pubId,
-    uint256 collectIndex
-  ) external view returns (CollectNFTData memory);
+    uint256 collectTokenId
+  ) external view returns (uint256);
+
+  function getPublicationData(uint256 profileId, uint256 pubId) external view returns (ProfilePublicationData memory);
 }

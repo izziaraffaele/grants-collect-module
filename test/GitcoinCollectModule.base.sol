@@ -7,8 +7,8 @@ import {MockRoundImplementation} from "./mocks/MockRoundImplementation.sol";
 
 import "../src/interfaces/IGitcoinCollectModule.sol";
 import "../src/utils/MetaPtr.sol";
-import "../src/votingStrategy/LensCollectVotingStrategyImplementation.sol";
-import "../src/GitcoinCollectModule.sol";
+import {LensCollectVotingStrategyImplementation} from "../src/votingStrategy/LensCollectVotingStrategyImplementation.sol";
+import {GitcoinCollectModule} from "../src/GitcoinCollectModule.sol";
 
 contract GitcoinCollectModuleBase is BaseSetup {
   uint16 constant REFERRAL_FEE_BPS = 250;
@@ -30,7 +30,7 @@ contract GitcoinCollectModuleBase is BaseSetup {
     votingStrategy = address(new LensCollectVotingStrategyImplementation());
     roundImplementation = address(new MockRoundImplementation());
 
-    LensCollectVotingStrategyImplementation(votingStrategy).initialize(hubProxyAddr, gitcoinCollectModule);
+    LensCollectVotingStrategyImplementation(votingStrategy).initialize(gitcoinCollectModule);
     MockRoundImplementation(roundImplementation).harnessSetVotingStrategy(votingStrategy);
     vm.stopPrank();
 

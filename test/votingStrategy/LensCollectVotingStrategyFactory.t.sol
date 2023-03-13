@@ -8,7 +8,6 @@ import {GitcoinCollectModule} from "../../src/GitcoinCollectModule.sol";
 
 contract LensCollectVotingStrategyFactory_Create is Test {
   address deployer = address(1);
-  address lensHub = address(1);
   address collectModule = address(1);
 
   LensCollectVotingStrategyFactory factory;
@@ -25,9 +24,8 @@ contract LensCollectVotingStrategyFactory_Create is Test {
   }
 
   function testCreateShouldInitializeImplementation() public virtual {
-    address votingStrategy = factory.create(lensHub, collectModule);
+    address votingStrategy = factory.create(collectModule);
 
     assertEq(LensCollectVotingStrategyImplementation(votingStrategy).collectModule(), collectModule);
-    assertEq(LensCollectVotingStrategyImplementation(votingStrategy).lensHub(), lensHub);
   }
 }

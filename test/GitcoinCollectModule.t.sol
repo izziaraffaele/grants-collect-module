@@ -8,6 +8,7 @@ import {MockRoundImplementation} from "./mocks/MockRoundImplementation.sol";
 
 import "../src/interfaces/IGitcoinCollectModule.sol";
 import "../src/utils/MetaPtr.sol";
+import "../src/utils/Events.sol";
 import {GitcoinCollectModule} from "../src/GitcoinCollectModule.sol";
 
 /////////
@@ -202,6 +203,7 @@ contract GitcoinCollectModule_Publication is GitcoinCollectModuleBase {
       pubId
     );
     assertEq(fetchedData.roundAddress, fuzzyInitData.roundAddress);
+    assertEq(fetchedData.collectToken, hub.getCollectNFT(userProfileId, pubId));
     assertEq(fetchedData.currency, fuzzyInitData.currency);
     assertEq(fetchedData.referralFee, fuzzyInitData.referralFee);
     assertEq(fetchedData.followerOnly, fuzzyInitData.followerOnly);
@@ -276,20 +278,26 @@ contract GitcoinCollectModule_Collect is GitcoinCollectModuleBase {
       me,
       publisherProfileId,
       pubId,
-      abi.encode(address(currency), 1 ether)
+      abi.encode(exampleInitData.currency, 1 ether)
     );
   }
 
   function testCannotCollectNonExistentPublication() public {
     vm.prank(user);
     vm.expectRevert(LensErrors.PublicationDoesNotExist.selector);
-    hub.collect(publisherProfileId, pubId + 1, abi.encode(address(currency), 1 ether));
+    hub.collect(publisherProfileId, pubId + 1, abi.encode(exampleInitData.currency, 1 ether));
   }
 
   function testCannotCollectPassingZeroAmountInData() public {
     vm.prank(user);
     vm.expectRevert(LensErrors.ModuleDataMismatch.selector);
-    hub.collect(publisherProfileId, pubId, abi.encode(address(currency), 0));
+    hub.collect(publisherProfileId, pubId, abi.encode(exampleInitData.currency, 0));
+  }
+
+  function testCannotCollectPassingWrongCurrencyInData() public {
+    vm.prank(user);
+    vm.expectRevert(LensErrors.ModuleDataMismatch.selector);
+    hub.collect(publisherProfileId, pubId, abi.encode(address(0xdead), 1 ether));
   }
 
   function testCannotCollectWithoutEnoughApproval() public {
@@ -297,7 +305,7 @@ contract GitcoinCollectModule_Collect is GitcoinCollectModuleBase {
     currency.approve(gitcoinCollectModule, 0);
     assert(currency.allowance(user, gitcoinCollectModule) < 1 ether);
     vm.expectRevert("ERC20: insufficient allowance");
-    hub.collect(publisherProfileId, pubId, abi.encode(address(currency), 1 ether));
+    hub.collect(publisherProfileId, pubId, abi.encode(exampleInitData.currency, 1 ether));
     vm.stopPrank();
   }
 
@@ -307,7 +315,7 @@ contract GitcoinCollectModule_Collect is GitcoinCollectModuleBase {
     assertEq(currency.balanceOf(user), 0);
     assert(currency.allowance(user, gitcoinCollectModule) >= 1 ether);
     vm.expectRevert("ERC20: transfer amount exceeds balance");
-    hub.collect(publisherProfileId, pubId, abi.encode(address(currency), 1 ether));
+    hub.collect(publisherProfileId, pubId, abi.encode(exampleInitData.currency, 1 ether));
     vm.stopPrank();
   }
 
@@ -331,7 +339,7 @@ contract GitcoinCollectModule_Collect is GitcoinCollectModuleBase {
     uint256 secondPubId = hubPost();
     vm.startPrank(user);
     vm.expectRevert(LensErrors.FollowInvalid.selector);
-    hub.collect(publisherProfileId, secondPubId, abi.encode(address(currency), 1 ether));
+    hub.collect(publisherProfileId, secondPubId, abi.encode(exampleInitData.currency, 1 ether));
     vm.stopPrank();
   }
 
@@ -340,34 +348,41 @@ contract GitcoinCollectModule_Collect is GitcoinCollectModuleBase {
   function testCanCollectIfAllConditionsAreMet() public {
     uint256 secondPubId = hubPost();
     vm.startPrank(user);
-    hub.collect(publisherProfileId, secondPubId, abi.encode(address(currency), 1 ether));
+    hub.collect(publisherProfileId, secondPubId, abi.encode(exampleInitData.currency, 1 ether));
     vm.stopPrank();
   }
 
-  // function testProperEventsAreEmittedAfterCollect() public {
-  //   uint256 secondPubId = hubPost();
-  //   vm.startPrank(user);
-
-  //   vm.expectEmit(true, true, true, false);
-  //   emit Events.Collected(user, publisherProfileId, secondPubId, publisherProfileId, secondPubId, "", block.timestamp);
-  //   hub.collect(publisherProfileId, secondPubId, abi.encode(address(currency), 1 ether));
-
-  //   vm.stopPrank();
-  // }
-
-  function testFetchedCollectDataShouldBeAccurate() public virtual {
+  function testCollectEmitsCollectedEvent() public {
     uint256 secondPubId = hubPost();
+
+    vm.expectEmit(true, true, true, false);
+    emit Events.Voted(
+      exampleInitData.currency,
+      1 ether,
+      user,
+      exampleInitData.recipient,
+      bytes32(publisherProfileId),
+      roundImplementation
+    );
 
     vm.prank(user);
     hub.collect(publisherProfileId, secondPubId, abi.encode(exampleInitData.currency, 1 ether));
+  }
 
-    CollectNFTData memory fetchedData = GitcoinCollectModule(gitcoinCollectModule).getCollectData(
-      publisherProfileId,
-      secondPubId,
-      1
+  function testCollectEmitsVotedEvent() public {
+    uint256 secondPubId = hubPost();
+
+    vm.expectEmit(true, true, true, false);
+    emit Events.Voted(
+      exampleInitData.currency,
+      1 ether,
+      user,
+      exampleInitData.recipient,
+      bytes32(publisherProfileId),
+      roundImplementation
     );
 
-    assertEq(fetchedData.amount, 1 ether);
-    assertEq(fetchedData.currency, exampleInitData.currency);
+    vm.prank(user);
+    hub.collect(publisherProfileId, secondPubId, abi.encode(exampleInitData.currency, 1 ether));
   }
 }

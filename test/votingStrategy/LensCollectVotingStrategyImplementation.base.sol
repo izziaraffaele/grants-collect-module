@@ -41,7 +41,7 @@ contract LensCollectVotingStrategyImplementationBase is BaseSetup {
     votingStrategy = address(new LensCollectVotingStrategyImplementation());
     roundImplementation = address(new MockRoundImplementation());
 
-    LensCollectVotingStrategyImplementation(votingStrategy).initialize(hubProxyAddr, gitcoinCollectModule);
+    LensCollectVotingStrategyImplementation(votingStrategy).initialize(gitcoinCollectModule);
     MockRoundImplementation(roundImplementation).harnessSetVotingStrategy(votingStrategy);
     vm.stopPrank();
 

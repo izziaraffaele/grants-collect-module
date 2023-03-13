@@ -14,8 +14,7 @@ import {IRoundImplementation} from "./interfaces/IRoundImplementation.sol";
 import {
   IGitcoinCollectModule,
   ProfilePublicationData,
-  RoundApplicationData,
-  CollectNFTData
+  RoundApplicationData
 } from "./interfaces/IGitcoinCollectModule.sol";
 
 /**
@@ -36,8 +35,7 @@ contract GitcoinCollectModule is IGitcoinCollectModule, FollowValidationModuleBa
   // --- Data ---
 
   mapping(uint256 => mapping(uint256 => ProfilePublicationData)) internal dataByPublicationByProfile;
-
-  mapping(address => mapping(uint256 => CollectNFTData)) internal dataByCollectedNFT;
+  mapping(address => mapping(uint256 => uint256)) internal amountByCollectNFT;
 
   // --- Core methods ---
 
@@ -70,6 +68,9 @@ contract GitcoinCollectModule is IGitcoinCollectModule, FollowValidationModuleBa
     // store publication data
     dataByPublicationByProfile[profileId][pubId] = ProfilePublicationData({
       roundAddress: initData.roundAddress,
+      // Lens collect NFTs are initialized within the first collect
+      // Calling ILensHub.getCollectNFT at this stage would return a zero-address
+      collectToken: address(0),
       currency: initData.currency,
       currentCollects: 0,
       recipient: initData.recipient,
@@ -94,22 +95,21 @@ contract GitcoinCollectModule is IGitcoinCollectModule, FollowValidationModuleBa
   }
 
   /**
-   * @notice Returns the collect data for a given a specific collectNFT of a publication, or an empty struct if that
-   * publication was not initialized with this module.
+   * @notice Returns the amount collected for a given collect NFT id attached to a given publication.
    *
    * @param profileId The token ID of the profile mapped to the publication to query.
    * @param pubId The publication ID of the publication to query.
-   * @param collectTokenId The collectNFT index of the publication to query.
+   * @param collectTokenID The collect NFT ID of the publication to query.
    *
-   * @return The CollectNFTData struct mapped to that publication NFT.
+   * @return The amount collected for the given collect NFT ID
    */
-  function getCollectData(
+  function getCollectNFTAmount(
     uint256 profileId,
     uint256 pubId,
-    uint256 collectTokenId
-  ) external view returns (CollectNFTData memory) {
-    address collectNFT = ILensHub(HUB).getCollectNFT(profileId, pubId);
-    return dataByCollectedNFT[collectNFT][collectTokenId];
+    uint256 collectTokenID
+  ) external view returns (uint256) {
+    address collectNFT = dataByPublicationByProfile[profileId][pubId].collectToken;
+    return amountByCollectNFT[collectNFT][collectTokenID];
   }
 
   /**
@@ -179,12 +179,15 @@ contract GitcoinCollectModule is IGitcoinCollectModule, FollowValidationModuleBa
       _checkFollowValidity(profileId, collector);
     }
 
+    if (dataByPublicationByProfile[profileId][pubId].collectToken == address(0)) {
+      dataByPublicationByProfile[profileId][pubId].collectToken = ILensHub(HUB).getCollectNFT(profileId, pubId);
+    }
+
+    address collectNFT = dataByPublicationByProfile[profileId][pubId].collectToken;
     uint256 nextCollect = ++dataByPublicationByProfile[profileId][pubId].currentCollects;
+    (, uint256 amount) = abi.decode(data, (address, uint256));
 
-    address collectNFT = ILensHub(HUB).getCollectNFT(profileId, pubId);
-    (address currency, uint256 amount) = abi.decode(data, (address, uint256));
-
-    dataByCollectedNFT[collectNFT][nextCollect] = CollectNFTData({currency: currency, amount: amount});
+    amountByCollectNFT[collectNFT][nextCollect] = amount;
   }
 
   /**

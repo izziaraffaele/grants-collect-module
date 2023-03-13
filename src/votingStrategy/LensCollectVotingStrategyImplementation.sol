@@ -12,10 +12,9 @@ import {
   SafeERC20Upgradeable,
   IERC20Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import {ILensHub} from "@aave/lens-protocol/contracts/interfaces/ILensHub.sol";
 
 import {IVotingStrategy} from "../interfaces/IVotingStrategy.sol";
-import {IGitcoinCollectModule, CollectNFTData} from "../interfaces/IGitcoinCollectModule.sol";
+import {IGitcoinCollectModule, ProfilePublicationData} from "../interfaces/IGitcoinCollectModule.sol";
 import {Errors, LensErrors} from "../utils/Errors.sol";
 import {Events} from "../utils/Events.sol";
 
@@ -38,13 +37,11 @@ contract LensCollectVotingStrategyImplementation is IVotingStrategy, Initializab
   /// @notice The current collect module
   address public collectModule;
 
-  /// @notice The Lens hub contract
-  address public lensHub;
-
   /// @notice The round contract address
   address public roundAddress;
 
-  mapping(address => mapping(uint256 => uint256)) public votesByCollectNFT;
+  /// @notice Mapping to store casted votes by collect NFT
+  mapping(address => mapping(uint256 => uint256)) internal votesByCollectNFT;
 
   // --- Modifiers ---
 
@@ -74,15 +71,13 @@ contract LensCollectVotingStrategyImplementation is IVotingStrategy, Initializab
    * @notice Invoked by LensCollectVotingStrategyFactory on creation to
    * set the round for which the voting contracts is to be used
    *
-   * @param _lensHub Address of the Lens Hub
    * @param _collectModule Address of the associated collect module
    */
-  function initialize(address _lensHub, address _collectModule) external initializer {
-    if (lensHub != address(0)) {
+  function initialize(address _collectModule) external initializer {
+    if (collectModule != address(0)) {
       revert LensErrors.Initialized();
     }
 
-    lensHub = _lensHub;
     collectModule = _collectModule;
   }
 
@@ -117,14 +112,41 @@ contract LensCollectVotingStrategyImplementation is IVotingStrategy, Initializab
       ) = abi.decode(encodedVotes[i], (address, uint256, address, bytes32, bytes32, uint256));
 
       if (_collectTokenId != 0 && uint256(_pubId) != 0) {
-        _validateAndStoreCollect(_token, _amount, uint256(_projectId), uint256(_pubId), _collectTokenId);
+        _voteWithCollect(_token, _amount, _grantAddress, uint256(_projectId), uint256(_pubId), _collectTokenId);
       } else {
-        _transferAmount(_token, _amount, _grantAddress, voterAddress);
+        _voteWithTransfer(_token, _amount, voterAddress, _grantAddress, _projectId);
       }
-
-      /// @dev emit event for transfer
-      emit Events.Voted(_token, _amount, voterAddress, _grantAddress, _projectId, msg.sender);
     }
+  }
+
+  function _voteWithCollect(
+    address token,
+    uint256 amount,
+    address grantAddress,
+    uint256 profileId,
+    uint256 pubId,
+    uint256 collectTokenId
+  ) internal {
+    _validateAndStoreCollect(token, amount, profileId, pubId, collectTokenId);
+
+    ProfilePublicationData memory pubData = IGitcoinCollectModule(collectModule).getPublicationData(profileId, pubId);
+    address voterAddress = IERC721(pubData.collectToken).ownerOf(collectTokenId);
+
+    /// @dev emit event for transfer
+    emit Events.Voted(token, amount, voterAddress, grantAddress, bytes32(profileId), msg.sender);
+  }
+
+  function _voteWithTransfer(
+    address token,
+    uint256 amount,
+    address voterAddress,
+    address grantAddress,
+    bytes32 projectId
+  ) internal {
+    _transferAmount(token, amount, grantAddress, voterAddress);
+
+    /// @dev emit event for transfer
+    emit Events.Voted(token, amount, voterAddress, grantAddress, projectId, msg.sender);
   }
 
   /**
@@ -145,26 +167,30 @@ contract LensCollectVotingStrategyImplementation is IVotingStrategy, Initializab
     uint256 pubId,
     uint256 collectTokenId
   ) internal {
-    address collectNFT = ILensHub(lensHub).getCollectNFT(profileId, pubId);
+    // validate data passed from the collector
+    ProfilePublicationData memory pubData = IGitcoinCollectModule(collectModule).getPublicationData(profileId, pubId);
+
+    if (pubData.collectToken == address(0)) {
+      revert Errors.VoteInvalid();
+    }
 
     // prevent from casting multiple votes
-    if (votesByCollectNFT[collectNFT][collectTokenId] > 0) {
+    if (votesByCollectNFT[pubData.collectToken][collectTokenId] > 0) {
       revert Errors.VoteCasted();
     }
 
-    // validate data passed from the collector
-    CollectNFTData memory collectData = IGitcoinCollectModule(collectModule).getCollectData(
+    uint256 collectedAmount = IGitcoinCollectModule(collectModule).getCollectNFTAmount(
       profileId,
       pubId,
       collectTokenId
     );
 
-    if (collectData.amount != amount || collectData.currency != token) {
+    if (collectedAmount != amount || pubData.currency != token) {
       revert Errors.VoteInvalid();
     }
 
     // register the vote to prevent double counting
-    votesByCollectNFT[collectNFT][collectTokenId] = collectData.amount;
+    votesByCollectNFT[pubData.collectToken][collectTokenId] = collectedAmount;
   }
 
   /**

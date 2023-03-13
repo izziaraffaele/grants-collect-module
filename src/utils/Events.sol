@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
+import {Events as LensEvents} from "@aave/lens-protocol/contracts/libraries/Events.sol";
+
 library Events {
   /// @notice Emitted when a new vote is sent
   event Voted(
