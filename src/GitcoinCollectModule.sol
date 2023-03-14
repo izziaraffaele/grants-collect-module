@@ -39,7 +39,9 @@ contract GitcoinCollectModule is IGitcoinCollectModule, FollowValidationModuleBa
 
   // --- Core methods ---
 
-  constructor(address hub) ModuleBase(hub) {}
+  constructor(address hub) ModuleBase(hub) {
+    // empty
+  }
 
   /**
    * @notice Initializes data for a given publication being published. This can only be called by the hub.
