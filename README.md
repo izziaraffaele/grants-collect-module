@@ -1,6 +1,6 @@
 # Grants Collect Module
 
-This repository contains a contracts to run a Gitcoin grants round on Lens protocol. This module allows Lens users to apply to a Gitcoin grants round with their publication and receive contributions from any dapp that supports Lens protocol.
+This repository contains contracts to run a Gitcoin grants round on Lens protocol. This module allows Lens users to apply to a Gitcoin grants round with their publication and receive contributions from any dapp that supports Lens protocol.
 
 [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/izziaraffaele/grants-collect-module)
 
