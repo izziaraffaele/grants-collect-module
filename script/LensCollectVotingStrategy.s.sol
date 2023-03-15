@@ -1,20 +1,32 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.7;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.10;
 
+import {LensCollectVotingStrategyImplementation} from "../src/votingStrategy/LensCollectVotingStrategyImplementation.sol";
+import {LensCollectVotingStrategyFactory} from "../src/votingStrategy/LensCollectVotingStrategyFactory.sol";
+
+import {BaseDeployScript} from "./BaseDeployScript.sol";
 import "forge-std/Script.sol";
-import "../src/votingStrategy/LensCollectVotingStrategyFactory.sol";
-import "../src/votingStrategy/LensCollectVotingStrategyImplementation.sol";
-import "./HelperConfig.sol";
 
-contract DeployLensCollectVotingStrategy is Script, HelperConfig {
-  function run() external {
+contract DeployLensCollectVotingStrategy is BaseDeployScript {
+  string constant LENS_HUB_NFT_NAME = "Lens Protocol Profiles";
+  string constant LENS_HUB_NFT_SYMBOL = "LPP";
+
+  constructor() BaseDeployScript() {
+    // empty
+  }
+
+  function deploy() internal override returns (DeployResult memory) {
     vm.startBroadcast();
 
-    address implementation = address(new LensCollectVotingStrategyImplementation());
+    address strategyImpl = address(new LensCollectVotingStrategyImplementation());
+
     LensCollectVotingStrategyFactory factory = new LensCollectVotingStrategyFactory();
 
     factory.initialize();
-    factory.updateVotingContract(implementation);
+    factory.updateVotingContract(strategyImpl);
+
     vm.stopBroadcast();
+
+    return DeployResult({gitcoinCollectModule: address(0), votingStrategyFactory: address(factory)});
   }
 }
