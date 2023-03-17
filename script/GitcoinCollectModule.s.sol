@@ -25,20 +25,22 @@ contract DeployGitcoinCollectModule is BaseDeployScript {
     // empty
   }
 
-  function deploy() internal override returns (DeployResult memory) {
+  function deploy() internal override {
     address hubProxyAddress = activeNetworkConfig.lensHub;
 
     vm.startBroadcast();
 
     if (hubProxyAddress == address(0)) {
       hubProxyAddress = _deployLensHub(); // this deploys a mock
+
+      address collectModule = address(new GitcoinCollectModule(hubProxyAddress));
+
+      LensHub(hubProxyAddress).whitelistCollectModule(collectModule, true);
+    } else {
+      new GitcoinCollectModule(hubProxyAddress);
     }
 
-    address gitcoinCollectModuleAddr = address(new GitcoinCollectModule(hubProxyAddress));
-
     vm.stopBroadcast();
-
-    return DeployResult({gitcoinCollectModule: gitcoinCollectModuleAddr, votingStrategyFactory: address(0)});
   }
 
   function _deployLensHub() internal returns (address) {
@@ -56,7 +58,7 @@ contract DeployGitcoinCollectModule is BaseDeployScript {
 
     TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
       address(lensHubImpl),
-      msg.sender,
+      0x70997970C51812dc3A010C7d01b50e0d17dc79C8,
       abi.encodeWithSelector(LensHub.initialize.selector, LENS_HUB_NFT_NAME, LENS_HUB_NFT_SYMBOL, governance)
     );
 

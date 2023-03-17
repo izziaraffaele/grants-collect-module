@@ -1,0 +1,21 @@
+{
+  "factoryAddr": {
+    "payoutStrategyFactoryContract": "0x68B1D87F95878fE05B998F19b66F4baba5De1aed",
+    "roundFactoryContract": "0x9A676e781A523b5d0C0e43731313A708CB607508",
+    "votingStrategyFactoryContract": "0x610178dA211FEF7D417bC0e6FeD39F05609AD788"
+  },
+  "matchAmount": 100,
+  "roles": {
+    "adminRoles": ["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"],
+    "roundOperators": ["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]
+  },
+  "roundFeeAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "roundFeePercentage": 0,
+  "roundTime": {
+    "applicationsEndTime": 2556054001,
+    "applicationsStartTime": 2556054000,
+    "roundEndTime": 2556054003,
+    "roundStartTime": 2556054002
+  },
+  "token": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270"
+}

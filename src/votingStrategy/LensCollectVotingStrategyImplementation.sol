@@ -13,7 +13,7 @@ import {
   IERC20Upgradeable
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
-import {IVotingStrategy} from "../interfaces/IVotingStrategy.sol";
+import {ILensCollectVotingStrategy} from "../interfaces/ILensCollectVotingStrategy.sol";
 import {IGitcoinCollectModule, ProfilePublicationData} from "../interfaces/IGitcoinCollectModule.sol";
 import {Errors, LensErrors} from "../utils/Errors.sol";
 import {Events} from "../utils/Events.sol";
@@ -25,7 +25,11 @@ import {Events} from "../utils/Events.sol";
  * @author Izzia Raffaele (https://github.com/izziaraffaele/grants-collect-module)
  * @author Modified from Gitcoin (https://github.com/gitcoinco/grants-stack)
  */
-contract LensCollectVotingStrategyImplementation is IVotingStrategy, Initializable, ReentrancyGuardUpgradeable {
+contract LensCollectVotingStrategyImplementation is
+  ILensCollectVotingStrategy,
+  Initializable,
+  ReentrancyGuardUpgradeable
+{
   using SafeERC20Upgradeable for IERC20Upgradeable;
 
   // --- Constants ---

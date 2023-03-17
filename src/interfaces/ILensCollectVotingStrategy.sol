@@ -4,13 +4,15 @@ pragma solidity ^0.8.10;
 /**
  * @notice Gitcoin grants voting strategy interface.
  */
-interface IVotingStrategy {
+interface ILensCollectVotingStrategy {
   /**
    * @notice Invoked by RoundImplementation on creation to
    * set the round for which the voting contracts is to be used
    *
    */
   function init() external;
+
+  function initialize(address collectModule) external;
 
   /**
    * @notice Invoked by RoundImplementation to allow voter to case

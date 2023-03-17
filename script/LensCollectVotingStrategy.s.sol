@@ -8,25 +8,19 @@ import {BaseDeployScript} from "./BaseDeployScript.sol";
 import "forge-std/Script.sol";
 
 contract DeployLensCollectVotingStrategy is BaseDeployScript {
-  string constant LENS_HUB_NFT_NAME = "Lens Protocol Profiles";
-  string constant LENS_HUB_NFT_SYMBOL = "LPP";
-
   constructor() BaseDeployScript() {
     // empty
   }
 
-  function deploy() internal override returns (DeployResult memory) {
+  function deploy() internal override {
     vm.startBroadcast();
 
     address strategyImpl = address(new LensCollectVotingStrategyImplementation());
 
     LensCollectVotingStrategyFactory factory = new LensCollectVotingStrategyFactory();
-
     factory.initialize();
     factory.updateVotingContract(strategyImpl);
 
     vm.stopBroadcast();
-
-    return DeployResult({gitcoinCollectModule: address(0), votingStrategyFactory: address(factory)});
   }
 }

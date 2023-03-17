@@ -4,19 +4,19 @@ pragma solidity ^0.8.10;
 import "forge-std/Test.sol";
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 
-import "../../src/interfaces/IVotingStrategy.sol";
+import "../../src/interfaces/ILensCollectVotingStrategy.sol";
 import "../../src/interfaces/IRoundImplementation.sol";
 import "../../src/utils/MetaPtr.sol";
 
 contract MockRoundImplementation is IRoundImplementation, AccessControlEnumerable {
   bytes32 public constant ROUND_OPERATOR_ROLE = keccak256("ROUND_OPERATOR");
 
-  IVotingStrategy public votingStrategy;
+  ILensCollectVotingStrategy public votingStrategy;
 
   // --- Harness methods methods ---
 
   function harnessSetVotingStrategy(address _votingStrategy) external {
-    votingStrategy = IVotingStrategy(_votingStrategy);
+    votingStrategy = ILensCollectVotingStrategy(_votingStrategy);
     votingStrategy.init();
   }
 

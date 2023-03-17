@@ -2,6 +2,8 @@
 
 This repository contains contracts to run a Gitcoin grants round on Lens protocol. This module allows Lens users to apply to a Gitcoin grants round with their publication and receive contributions from any dapp that supports Lens protocol.
 
+This module is an experiment while playing with Kevin Owocki's idea of a quadratic funding social network posted [here](https://community.supermodular.xyz/t/sip-cohort-2-opportunity-2-quadratic-funding-social-network/94). Be sure to check out the discussion as it contains useful information on how this package works.
+
 [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/izziaraffaele/grants-collect-module)
 
 # Getting Started
@@ -15,6 +17,8 @@ Please install [Foundry / Foundryup](https://github.com/gakonst/foundry):
 - To get the latest of each, just run `foundryup`
 
 And you probably already have `make` installed... but if not [try looking here.](https://askubuntu.com/questions/161104/how-do-i-install-make)
+
+Note that you need to deploy your own Gitcoin round on polygon to test this package in a real life scenarios.
 
 ## Quickstart
 
@@ -107,6 +111,24 @@ To add a chain, you'd just need to make a new entry in the `Makefile`, and repla
 ```
 deploy-<YOUR_CHAIN> :; @forge script script/${contract}.s.sol:Deploy${contract} --rpc-url ${<YOUR_CHAIN>_RPC_URL}  --private-key ${PRIVATE_KEY} --broadcast -vvvv
 ```
+
+# Usage
+
+Create a new voting strategy
+
+```
+cast send --private-key [private key] [voting strategy factory address] "create(address)(address)" [collect module address]
+```
+
+Create a new round implementation following this [deploy steps](https://github.com/allo-protocol/contracts/blob/main/docs/DEPLOY_STEPS.md)
+
+Whitelist your collect module address from the LensHub (this must be done from Lens team in mainnet)
+
+```
+cast send --private-key [private key] [lens hub address] "whitelistCollectModule(address, bool)" [collect module address] true
+```
+
+You are ready to post your publication on Lens!
 
 # Contributing
 

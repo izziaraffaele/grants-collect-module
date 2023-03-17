@@ -10,7 +10,7 @@ clean  :; forge clean
 # Remove modules
 remove :; rm -rf .gitmodules && rm -rf .git/modules/* && rm -rf lib && touch .gitmodules && git add . && git commit -m "modules"
 
-install :; forge install foundry-rs/forge-std
+install :; forge install foundry-rs/forge-std && forge install allo-protocol/contracts
 
 # Update Dependencies
 update:; forge update
@@ -36,4 +36,4 @@ deploy-sepolia :; @forge script script/${contract}.s.sol:Deploy${contract} --rpc
 # This is the private key of account from the mnemonic from the "make anvil" command
 deploy-anvil :; @forge script script/${contract}.s.sol:Deploy${contract} --rpc-url http://localhost:8545  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --broadcast
 
-deploy-all :; make deploy-${network} contract=GitcoinCollectModule && make deploy-${network} contract=LensCollectVotingStrategy
+deploy-all :; make deploy-${network} contract=GitcoinCollectModule && make deploy-${network} contract=LensCollectVotingStrategy && make deploy-${network} contract=RoundImplementation

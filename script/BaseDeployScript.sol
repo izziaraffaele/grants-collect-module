@@ -7,18 +7,13 @@ import "./HelperConfig.sol";
 abstract contract BaseDeployScript is Script, HelperConfig {
   address deployer;
 
-  struct DeployResult {
-    address gitcoinCollectModule;
-    address votingStrategyFactory;
-  }
-
   constructor() HelperConfig() {
     // empty
   }
 
-  function run() external returns (DeployResult memory) {
+  function run() external {
     loadPrivateKeys();
-    return deploy();
+    deploy();
   }
 
   function loadPrivateKeys() internal {
@@ -27,5 +22,5 @@ abstract contract BaseDeployScript is Script, HelperConfig {
     console.log("Deployer balance:", deployer.balance);
   }
 
-  function deploy() internal virtual returns (DeployResult memory);
+  function deploy() internal virtual;
 }

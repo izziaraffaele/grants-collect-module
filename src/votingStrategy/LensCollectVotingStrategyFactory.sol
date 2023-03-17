@@ -5,7 +5,7 @@ import {ClonesUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/Clone
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {MetaPtr} from "../utils/MetaPtr.sol";
 
-import {LensCollectVotingStrategyImplementation} from "./LensCollectVotingStrategyImplementation.sol";
+import {ILensCollectVotingStrategy} from "../interfaces/ILensCollectVotingStrategy.sol";
 
 contract LensCollectVotingStrategyFactory is OwnableUpgradeable {
   address public votingContract;
@@ -46,7 +46,7 @@ contract LensCollectVotingStrategyFactory is OwnableUpgradeable {
   function create(address collectModule) external returns (address) {
     address clone = ClonesUpgradeable.clone(votingContract);
     emit VotingContractCreated(clone, votingContract);
-    LensCollectVotingStrategyImplementation(clone).initialize(collectModule);
+    ILensCollectVotingStrategy(clone).initialize(collectModule);
 
     return clone;
   }
