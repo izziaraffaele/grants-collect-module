@@ -17,13 +17,13 @@
   },
   "sandbox": {
     "chainId": 80001,
-    "network": "http://localhost:8545",
-    "LensHubProxy": "0x60Ae865ee4C725cd04353b5AAb364553f56ceF82",
-    "ModuleGlobals": "0x1353aAdfE5FeD85382826757A95DE908bd21C4f9",
-    "GitcoinCollectModule": "0xd790aec46fd881a6d88a417cc6c108634c2b1399",
-    "LensCollectVotingStrategyFactory": "0xcb4fdbef6a0e85bc74c612bc0358c963296c830a",
-    "LensCollectVotingStrategyImplementation": "0x6874e72e21661fd661b195618a43fb2f5a636f54",
-    "MerklePayoutStrategyFactory": "0x6ec087d409e276bddcfd53ff928306ddef7de392",
-    "RoundFactory": "0xd2318ed1b3c18a7dcd45a612814eefbee9163b17"
+    "network": "mumbai",
+    "LensHubProxy": "0x7582177F9E536aB0b6c721e11f383C326F2Ad1D5",
+    "ModuleGlobals": "0xcbCC5b9611d22d11403373432642Df9Ef7Dd81AD",
+    "GitcoinCollectModule": "0xb922114c9a40e172688f13580e184a144706966b",
+    "LensCollectVotingStrategyFactory": "0x7fefcee90d1786cd2b7fd7bd260df3323ab5e2c2",
+    "LensCollectVotingStrategyImplementation": "0xcd53d23132a962e153fe63f01024b861dc90d080",
+    "MerklePayoutStrategyFactory": "0x81bf72b41dc91663f879a096fb7e9f97d1762e85",
+    "RoundFactory": "0xc8a1452860b05859d0298801d25e0412801b9870"
   }
 }

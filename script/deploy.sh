@@ -39,13 +39,8 @@ if [[ $SAVED_ADDRESS != "" ]]
         fi
 fi
 
-if [[ $PRIVATE_KEY == "" && $1 == "sandbox" ]]
-    then
-        PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-fi
-
 CALLDATA=$(cast calldata "run(string)" $1)
-PRIVATE_KEY=$PRIVATE_KEY forge script script/$2.s.sol:Deploy$2 -s $CALLDATA --rpc-url $NETWORK
+forge script script/$2.s.sol:Deploy$2 -s $CALLDATA --rpc-url $NETWORK
 
 read -p "Please verify the data and confirm the deployment (y/n):" CONFIRMATION
 
@@ -55,15 +50,14 @@ if [[ $CONFIRMATION == "y" || $CONFIRMATION == "Y" ]]
 
         if [[ $3 == "--verify"  ]]
             then
-                FORGE_OUTPUT=$(PRIVATE_KEY=$PRIVATE_KEY forge script script/$2.s.sol:Deploy$2 -s $CALLDATA --rpc-url $NETWORK --broadcast --verify)
+                FORGE_OUTPUT=$(forge script script/$2.s.sol:Deploy$2 -s $CALLDATA --rpc-url $NETWORK -g 160 --legacy --broadcast --verify)
             else
-                FORGE_OUTPUT=$(PRIVATE_KEY=$PRIVATE_KEY forge script script/$2.s.sol:Deploy$2 -s $CALLDATA --rpc-url $NETWORK --broadcast)
+                FORGE_OUTPUT=$(forge script script/$2.s.sol:Deploy$2 -s $CALLDATA --rpc-url $NETWORK -g 160 --legacy --broadcast)
         fi
 
         echo "$FORGE_OUTPUT"
 
         DEPLOYED_ADDRESS=$(echo "$FORGE_OUTPUT" | grep "Contract Address:" | sed -n 's/.*: \(0x[0-9a-hA-H]\{40\}\)/\1/p')
-        DEPLOYED_CHAIN=$(echo "$FORGE_OUTPUT" | grep "Chain" | sed -n 's/.*: \([0-9]\{1,5\}\)/\1/p')
 
         if [[ $DEPLOYED_ADDRESS == "" ]]
             then
