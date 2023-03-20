@@ -15,7 +15,7 @@ import {Currency} from "@aave/lens-protocol/contracts/mocks/Currency.sol";
 
 import {LensErrors, Errors} from "../src/utils/Errors.sol";
 import {NFT} from "./mocks/NFT.sol";
-import {ForkManagement} from "./helpers/ForkManagement.sol";
+import {ForkManagement} from "../script/helpers/ForkManagement.sol";
 
 contract BaseSetup is Test, ForkManagement {
   using stdJson for string;

@@ -18,8 +18,6 @@ Please install [Foundry / Foundryup](https://github.com/gakonst/foundry):
 
 And you probably already have `make` installed... but if not [try looking here.](https://askubuntu.com/questions/161104/how-do-i-install-make)
 
-Note that you need to deploy your own Gitcoin round on polygon to test this package in a real life scenarios.
-
 ## Quickstart
 
 ```sh
@@ -59,28 +57,30 @@ You'll need to add the following variables to a `.env` file:
 ## Deploying
 
 ```
+make deploy-all network=<sandbox|mumbai|mainnet>
+```
+
+This will deploy all the contracts in this repository on a specific network. It will also deploy and configure a Gitcoin Round. You'll find deployed contract addresses in `addresses.json`.
+
+Alternatively you can use the following commands to deploy only the contracts in this repo.
+
+```
+make deploy-contracts network=<sandbox|mumbai|mainnet>
+```
+
+To deploy only a specific contract use the following command
+
+```
 make deploy-mumbai contract=<CONTRACT_NAME>
 ```
 
 For example:
 
 ```
-make deploy-mumbai contract=VotingStrategyFactory
+make deploy-mumbai contract=GitcoinCollectModule
 ```
 
-This will run the forge script, the script it's running is:
-
-```
-@forge script script/${contract}.s.sol:Deploy${contract} --rpc-url ${SEPOLIA_RPC_URL}  --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}  -vvvv
-```
-
-If you don't have an `ETHERSCAN_API_KEY`, you can also just run:
-
-```
-@forge script script/${contract}.s.sol:Deploy${contract} --rpc-url ${MUMBAI_RPC_URL}  --private-key ${PRIVATE_KEY} --broadcast
-```
-
-These pull from the files in the `script` folder.
+These commands pull from the files in the `script` folder.
 
 ### Working with a local network
 
@@ -92,7 +92,7 @@ To start a local network run:
 make anvil
 ```
 
-This will spin up a local blockchain with a determined private key, so you can use the same private key each time.
+This will spin up a local blockchain with a determined private key, so you can use the same private key each time. It creates a fork of the mumbai testnet so the `MUMBAI_RPC_URL` env variable is required to run this command.
 
 Then, you can deploy to it with:
 
@@ -106,26 +106,12 @@ Similar to `deploy-mumbai`
 
 To deploy on Polygon mainnet, you can just use `deploy-polygon` similar to `deploy-mumbai`;
 
-To add a chain, you'd just need to make a new entry in the `Makefile`, and replace `<YOUR_CHAIN>` with whatever your chain's information is.
-
-```
-deploy-<YOUR_CHAIN> :; @forge script script/${contract}.s.sol:Deploy${contract} --rpc-url ${<YOUR_CHAIN>_RPC_URL}  --private-key ${PRIVATE_KEY} --broadcast -vvvv
-```
-
 # Usage
 
-Create a new voting strategy
+If all the contracts are deployed correctly you can simply run the following command to create a quadratic funding lens round
 
 ```
-cast send --private-key [private key] [voting strategy factory address] "create(address)(address)" [collect module address]
-```
-
-Create a new round implementation following this [deploy steps](https://github.com/allo-protocol/contracts/blob/main/docs/DEPLOY_STEPS.md)
-
-Whitelist your collect module address from the LensHub (this must be done from Lens team in mainnet)
-
-```
-cast send --private-key [private key] [lens hub address] "whitelistCollectModule(address, bool)" [collect module address] true
+script/execute.sh sandbox RoundFactory RoundCreate
 ```
 
 You are ready to post your publication on Lens!

@@ -106,6 +106,6 @@ dist
 # Foundry
 cache/
 out/
-broadcast/*/31337
+broadcast/
 .gas-snapshot
 .encryptedKey
