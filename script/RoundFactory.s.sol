@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
+import {AlloSettings} from "allo/settings/AlloSettings.sol";
 import {RoundFactory} from "allo/round/RoundFactory.sol";
 import {RoundImplementation} from "allo/round/RoundImplementation.sol";
 import {MerklePayoutStrategyFactory} from "allo/payoutStrategy/MerklePayoutStrategy/MerklePayoutStrategyFactory.sol";
@@ -18,10 +19,15 @@ contract DeployRoundFactory is BaseDeployer {
 
     address roundFactory = address(new RoundFactory());
     RoundFactory(roundFactory).initialize();
-    RoundFactory(roundFactory).updateProtocolTreasury(payable(deployer));
 
     address roundImpl = address(new RoundImplementation());
-    RoundFactory(roundFactory).updateRoundContract(payable(roundImpl));
+    RoundFactory(roundFactory).updateRoundImplementation(payable(roundImpl));
+
+    address alloSettings = address(new AlloSettings());
+    AlloSettings(alloSettings).initialize();
+    AlloSettings(alloSettings).updateProtocolTreasury(payable(deployer));
+
+    RoundFactory(roundFactory).updateAlloSettings(alloSettings);
 
     vm.stopBroadcast();
 
