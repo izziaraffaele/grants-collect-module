@@ -4,19 +4,16 @@
     "network": "polygon",
     "LensHubProxy": "0xDb46d1Dc155634FbC732f92E853b10B288AD5a1d"
   },
-  "mumbai": {
+  "testnet": {
     "chainId": 80001,
     "network": "mumbai",
     "LensHubProxy": "0x60Ae865ee4C725cd04353b5AAb364553f56ceF82",
     "ModuleGlobals": "0x1353aAdfE5FeD85382826757A95DE908bd21C4f9",
-    "GitcoinCollectModule": "0x93B37236aab63cfBFfA49189340ac80349621269",
-    "LensCollectVotingStrategyFactory": "0x3d489429c52fDfc3f72F51cfa26316d472a33764",
-    "LensCollectVotingStrategyImplementation": "0x9af78Ff5376E54B437196C351Fedd6931f04292f",
-    "MerklePayoutStrategyFactory": "0x652906A092bd85a1e828FAA08C6c7A08D9AE44AD",
-    "MerklePayoutStrategyImplementation": "0x73E4e4d1F8De573fDfB54AF61418a28167eF12AA",
-    "RoundFactory": "0x298Db30a1831D65925DA468062A8Ef5F6D76D8fF",
-    "RoundImplementation": "0x57aE67d255ef7B31df85A555C7AFb9B4C4446955",
-    "RoundToken": "0x9c3C9283D3e44854697Cd22D3Faa240Cfb032889"
+    "GitcoinCollectModule": "0xa327bacd4652fbaa8b75f8f475a9b2e9ed0795b8",
+    "LensCollectVotingStrategyFactory": "0x80a708f2914d0be55aedbb8dc42dfc5fc06cafa2",
+    "LensCollectVotingStrategyImplementation": "0x4f6cace0250d57fe1d643c50dcd510f9f9e35753",
+    "MerklePayoutStrategyFactory": "0x536f34df8f9032df43a49b6d08ddc4500a042426",
+    "RoundFactory": "0x2acff79e4dc916ac29c74515e8fc4330b8ac1d49"
   },
   "sandbox": {
     "chainId": 80001,

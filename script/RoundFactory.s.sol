@@ -53,21 +53,18 @@ contract ExecuteRoundCreate is BaseDeployer {
     votingStrategyFactory = json.readAddress(
       string(abi.encodePacked(".", targetEnv, ".LensCollectVotingStrategyFactory"))
     );
-
-    vm.label(collectModule, "GitcoinCollectModule");
-    vm.label(roundFactory, "RoundFactory");
-    vm.label(payoutStrategyFactory, "MerklePayoutStrategyFactory");
-    vm.label(votingStrategyFactory, "LensCollectVotingStrategyFactory");
   }
 
   function deploy() internal override returns (address) {
+    require(payoutStrategyFactory != address(0), "Unknown payout strategy factory");
+    require(votingStrategyFactory != address(0), "Unknown voting strategy factory");
+    require(collectModule != address(0), "Unknown collect module");
+    require(roundFactory != address(0), "Unknown round factory");
+
     vm.startBroadcast(deployerPrivateKey);
 
     payoutStrategy = MerklePayoutStrategyFactory(payoutStrategyFactory).create();
     votingStrategy = LensCollectVotingStrategyFactory(votingStrategyFactory).create(collectModule);
-
-    vm.label(payoutStrategyFactory, "MerklePayoutStrategyInstance");
-    vm.label(votingStrategyFactory, "LensCollectVotingStrategyInstance");
 
     address round = RoundFactory(roundFactory).create(getEncodedRoundParams(), deployer);
 

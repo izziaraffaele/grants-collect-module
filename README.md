@@ -57,7 +57,7 @@ You'll need to add the following variables to a `.env` file:
 ## Deploying
 
 ```
-make deploy-all network=<sandbox|mumbai|mainnet>
+make deploy-all network=<sandbox|testnet|mainnet>
 ```
 
 This will deploy all the contracts in this repository on a specific network. It will also deploy and configure a Gitcoin Round. You'll find deployed contract addresses in `addresses.json`.
@@ -65,19 +65,19 @@ This will deploy all the contracts in this repository on a specific network. It 
 Alternatively you can use the following commands to deploy only the contracts in this repo.
 
 ```
-make deploy-contracts network=<sandbox|mumbai|mainnet>
+make deploy-contracts network=<sandbox|testnet|mainnet>
 ```
 
 To deploy only a specific contract use the following command
 
 ```
-make deploy-mumbai contract=<CONTRACT_NAME>
+make deploy-testnet contract=<CONTRACT_NAME>
 ```
 
 For example:
 
 ```
-make deploy-mumbai contract=GitcoinCollectModule
+make deploy-testnet contract=GitcoinCollectModule
 ```
 
 These commands pull from the files in the `script` folder.
@@ -100,18 +100,18 @@ Then, you can deploy to it with:
 make deploy-anvil contract=<CONTRACT_NAME>
 ```
 
-Similar to `deploy-mumbai`
+Similar to `deploy-testnet`
 
 ### Working with other chains
 
-To deploy on Polygon mainnet, you can just use `deploy-polygon` similar to `deploy-mumbai`;
+To deploy on Polygon mainnet, you can just use `deploy-mainnet` similar to `deploy-testnet`;
 
 # Usage
 
 If all the contracts are deployed correctly you can simply run the following command to create a quadratic funding lens round
 
 ```
-script/execute.sh sandbox RoundFactory RoundCreate
+make create-round network=<sandbox|testnet|mainnet>
 ```
 
 You are ready to post your publication on Lens!
