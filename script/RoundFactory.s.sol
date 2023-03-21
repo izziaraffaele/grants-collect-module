@@ -4,6 +4,7 @@ pragma solidity ^0.8.10;
 import {AlloSettings} from "allo/settings/AlloSettings.sol";
 import {RoundFactory} from "allo/round/RoundFactory.sol";
 import {RoundImplementation} from "allo/round/RoundImplementation.sol";
+import {ProgramFactory} from "allo/program/ProgramFactory.sol";
 import {MerklePayoutStrategyFactory} from "allo/payoutStrategy/MerklePayoutStrategy/MerklePayoutStrategyFactory.sol";
 import {IPayoutStrategy} from "allo/payoutStrategy/IPayoutStrategy.sol";
 import {IVotingStrategy} from "allo/votingStrategy/IVotingStrategy.sol";
@@ -38,8 +39,9 @@ contract DeployRoundFactory is BaseDeployer {
 contract ExecuteRoundCreate is BaseDeployer {
   using stdJson for string;
 
-  address roundFactory;
   address payoutStrategyFactory;
+  address programFactory;
+  address roundFactory;
   address votingStrategyFactory;
 
   address collectModule;
@@ -47,30 +49,44 @@ contract ExecuteRoundCreate is BaseDeployer {
   address votingStrategy;
 
   function loadBaseAddresses(string memory json, string memory targetEnv) internal override {
-    collectModule = json.readAddress(string(abi.encodePacked(".", targetEnv, ".GitcoinCollectModule")));
-    roundFactory = json.readAddress(string(abi.encodePacked(".", targetEnv, ".RoundFactory")));
+    programFactory = json.readAddress(string(abi.encodePacked(".", targetEnv, ".ProgramFactory")));
     payoutStrategyFactory = json.readAddress(string(abi.encodePacked(".", targetEnv, ".MerklePayoutStrategyFactory")));
+    roundFactory = json.readAddress(string(abi.encodePacked(".", targetEnv, ".RoundFactory")));
     votingStrategyFactory = json.readAddress(
       string(abi.encodePacked(".", targetEnv, ".LensCollectVotingStrategyFactory"))
     );
+
+    collectModule = json.readAddress(string(abi.encodePacked(".", targetEnv, ".GitcoinCollectModule")));
   }
 
   function deploy() internal override returns (address) {
+    require(programFactory != address(0), "Unknown round factory");
+    require(roundFactory != address(0), "Unknown round factory");
     require(payoutStrategyFactory != address(0), "Unknown payout strategy factory");
     require(votingStrategyFactory != address(0), "Unknown voting strategy factory");
+
     require(collectModule != address(0), "Unknown collect module");
-    require(roundFactory != address(0), "Unknown round factory");
 
     vm.startBroadcast(deployerPrivateKey);
+    address program = ProgramFactory(programFactory).create(getEncodedProgramParams());
 
     payoutStrategy = MerklePayoutStrategyFactory(payoutStrategyFactory).create();
     votingStrategy = LensCollectVotingStrategyFactory(votingStrategyFactory).create(collectModule);
 
-    address round = RoundFactory(roundFactory).create(getEncodedRoundParams(), deployer);
+    address round = RoundFactory(roundFactory).create(getEncodedRoundParams(), program);
 
     vm.stopBroadcast();
 
     return round;
+  }
+
+  function getEncodedProgramParams() internal view returns (bytes memory) {
+    address[] memory adminRoles = new address[](1);
+    adminRoles[0] = deployer;
+    address[] memory programOperators = new address[](1);
+    programOperators[0] = deployer;
+
+    return abi.encode(getInitMetaPtr(), adminRoles, programOperators);
   }
 
   function getEncodedRoundParams() internal view returns (bytes memory) {
