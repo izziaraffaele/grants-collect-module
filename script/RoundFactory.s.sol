@@ -71,7 +71,7 @@ contract ExecuteRoundCreate is BaseDeployer {
     address program = ProgramFactory(programFactory).create(getEncodedProgramParams());
 
     payoutStrategy = MerklePayoutStrategyFactory(payoutStrategyFactory).create();
-    votingStrategy = LensCollectVotingStrategyFactory(votingStrategyFactory).create(collectModule);
+    votingStrategy = LensCollectVotingStrategyFactory(votingStrategyFactory).create();
 
     address round = RoundFactory(roundFactory).create(getEncodedRoundParams(), program);
 

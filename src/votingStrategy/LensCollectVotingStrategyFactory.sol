@@ -10,10 +10,15 @@ import {ILensCollectVotingStrategy} from "../interfaces/ILensCollectVotingStrate
 contract LensCollectVotingStrategyFactory is OwnableUpgradeable {
   address public votingContract;
 
+  address public collectModule;
+
   // --- Event ---
 
   /// @notice Emitted when a Voting contract is updated
   event VotingContractUpdated(address votingContractAddress);
+
+  /// @notice Emitted when a Voting contract is updated
+  event CollectModuleUpdated(address collectModuleAddress);
 
   /// @notice Emitted when a new Voting is created
   event VotingContractCreated(address indexed votingContractAddress, address indexed votingImplementation);
@@ -27,9 +32,9 @@ contract LensCollectVotingStrategyFactory is OwnableUpgradeable {
   // --- Core methods ---
 
   /**
-   * @notice Allows the owner to update the QuadraticFundingVotingStrategyImplementation.
-   * This provides us the flexibility to upgrade QuadraticFundingVotingStrategyImplementation
-   * contract while relying on the same QuadraticFundingVotingStrategyFactory to get the list of
+   * @notice Allows the owner to update the LensCollectVotingStrategyImplementation.
+   * This provides us the flexibility to upgrade LensCollectVotingStrategyImplementation
+   * contract while relying on the same LensCollectVotingStrategyFactory to get the list of
    * QuadraticFundingVoting contracts.
    */
   function updateVotingContract(address newVotingContract) external onlyOwner {
@@ -40,10 +45,20 @@ contract LensCollectVotingStrategyFactory is OwnableUpgradeable {
   }
 
   /**
+   * @notice Allows the owner to update the Lens collect module used to initialize the strategy.
+   */
+  function updateCollectModule(address newCollectModule) external onlyOwner {
+    // slither-disable-next-line missing-zero-check
+    collectModule = newCollectModule;
+
+    emit CollectModuleUpdated(newCollectModule);
+  }
+
+  /**
    * @notice Clones QuadraticFundingVotingStrategyImplementation and deploys a contract
    * and emits an event
    */
-  function create(address collectModule) external returns (address) {
+  function create() external returns (address) {
     address clone = ClonesUpgradeable.clone(votingContract);
     emit VotingContractCreated(clone, votingContract);
     ILensCollectVotingStrategy(clone).initialize(collectModule);
