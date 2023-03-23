@@ -39,8 +39,13 @@ if [[ $SAVED_ADDRESS != "" ]]
         fi
 fi
 
+if [[ $PRIVATE_KEY == "" && $1 == "anvil" ]]
+    then
+      PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+fi
+
 CALLDATA=$(cast calldata "run(string)" $1)
-forge script script/$2.s.sol:Deploy$2 -s $CALLDATA --rpc-url $NETWORK
+PRIVATE_KEY=$PRIVATE_KEY forge script script/$2.s.sol:Deploy$2 -s $CALLDATA --rpc-url $NETWORK
 
 read -p "Please verify the data and confirm the deployment (y/n):" CONFIRMATION
 
@@ -52,7 +57,7 @@ if [[ $CONFIRMATION == "y" || $CONFIRMATION == "Y" ]]
             then
                 FORGE_OUTPUT=$(forge script script/$2.s.sol:Deploy$2 -s $CALLDATA --rpc-url $NETWORK -g 160 --legacy --broadcast --verify)
             else
-                FORGE_OUTPUT=$(forge script script/$2.s.sol:Deploy$2 -s $CALLDATA --rpc-url $NETWORK -g 160 --legacy --broadcast)
+                FORGE_OUTPUT=$(PRIVATE_KEY=$PRIVATE_KEY forge script script/$2.s.sol:Deploy$2 -s $CALLDATA --rpc-url $NETWORK -g 160 --legacy --broadcast)
         fi
 
         echo "$FORGE_OUTPUT"

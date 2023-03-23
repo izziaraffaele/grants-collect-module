@@ -31,6 +31,7 @@ lint :; solhint src/**/*.sol && solhint src/*.sol
 anvil :; anvil -m 'test test test test test test test test test test test junk' --fork-url ${MUMBAI_RPC_URL}
 
 # deploy commands
+deploy-anvil :; ./script/deploy.sh anvil ${contract}
 deploy-sandbox :; ./script/deploy.sh sandbox ${contract} --verify
 deploy-testnet :; ./script/deploy.sh testnet ${contract} --verify
 deploy-mainnet :; ./script/deploy.sh mainnet ${contract} --verify
