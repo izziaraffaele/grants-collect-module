@@ -7,14 +7,21 @@ import "forge-std/Test.sol";
 import {LensHub} from "@aave/lens-protocol/contracts/core/LensHub.sol";
 import {FollowNFT} from "@aave/lens-protocol/contracts/core/FollowNFT.sol";
 import {CollectNFT} from "@aave/lens-protocol/contracts/core/CollectNFT.sol";
-import {ModuleGlobals} from "@aave/lens-protocol/contracts/core/modules/ModuleGlobals.sol";
-import {FreeCollectModule} from "@aave/lens-protocol/contracts/core/modules/collect/FreeCollectModule.sol";
 import {TransparentUpgradeableProxy} from "@aave/lens-protocol/contracts/upgradeability/TransparentUpgradeableProxy.sol";
-import {DataTypes} from "@aave/lens-protocol/contracts/libraries/DataTypes.sol";
+import {DataTypes as LensDataTypes} from "@aave/lens-protocol/contracts/libraries/DataTypes.sol";
+import {Errors as LensErrors} from "@aave/lens-protocol/contracts/libraries/Errors.sol";
+import {Events as LensEvents} from "@aave/lens-protocol/contracts/libraries/Events.sol";
 import {Currency} from "@aave/lens-protocol/contracts/mocks/Currency.sol";
 
-import {LensErrors, Errors} from "../src/utils/Errors.sol";
+import {Errors} from "../src/libraries/Errors.sol";
+import {Events} from "../src/libraries/Events.sol";
+import {DataTypes} from "../src/libraries/DataTypes.sol";
+import {IRoundImplementation} from "../src/interfaces/IRoundImplementation.sol";
+import {LensCollectVotingStrategyImplementation} from "../src/votingStrategy/LensCollectVotingStrategyImplementation.sol";
+import {GitcoinCollectModule} from "../src/GitcoinCollectModule.sol";
+
 import {NFT} from "./mocks/NFT.sol";
+import {MockRoundImplementation} from "./mocks/MockRoundImplementation.sol";
 import {ForkManagement} from "../script/helpers/ForkManagement.sol";
 
 contract BaseSetup is Test, ForkManagement {
@@ -29,7 +36,6 @@ contract BaseSetup is Test, ForkManagement {
   uint256 firstProfileId;
   address deployer;
   address governance;
-  address treasury;
 
   address constant publisher = address(4);
   address constant user = address(5);
@@ -40,27 +46,30 @@ contract BaseSetup is Test, ForkManagement {
   address immutable me = address(this);
 
   string constant MOCK_HANDLE = "mock";
+  bytes32 constant MOCK_PROJECT_ID = bytes32("mock-project-id");
   string constant MOCK_URI = "ipfs://QmUXfQWe43RKx31VzA2BnbwhSMW8WuaJvszFWChD59m76U";
   string constant OTHER_MOCK_URI = "https://ipfs.io/ipfs/QmTFLSXdEQ6qsSzaXaCSNtiv6wA56qq87ytXJ182dXDQJS";
   string constant MOCK_FOLLOW_NFT_URI = "https://ipfs.io/ipfs/QmU8Lv1fk31xYdghzFrLm6CiFcwVg7hdgV6BBWesu6EqLj";
-
-  uint16 TREASURY_FEE_BPS;
   uint16 constant TREASURY_FEE_MAX_BPS = 10000;
 
   address hubProxyAddr;
+  address collectModuleAddr;
+
   CollectNFT collectNFT;
   FollowNFT followNFT;
   LensHub hubImpl;
   TransparentUpgradeableProxy hubAsProxy;
+  GitcoinCollectModule public gitcoinCollectModule;
   LensHub hub;
-  FreeCollectModule freeCollectModule;
   Currency currency;
-  ModuleGlobals moduleGlobals;
+  MockRoundImplementation round;
+  LensCollectVotingStrategyImplementation public votingStrategy;
+
   NFT nft;
 
   // TODO: Replace with forge-std/StdJson.sol::keyExists(...) when/if this PR is approved:
   //       https://github.com/foundry-rs/forge-std/pull/226
-  function keyExists(string memory key) internal returns (bool) {
+  function keyExists(string memory key) internal view returns (bool) {
     return json.parseRaw(key).length > 0;
   }
 
@@ -85,14 +94,17 @@ contract BaseSetup is Test, ForkManagement {
     followNFT = FollowNFT(followNFTAddr);
     collectNFT = CollectNFT(collectNFTAddr);
     hubAsProxy = TransparentUpgradeableProxy(payable(address(hub)));
-    freeCollectModule = FreeCollectModule(
-      _json.readAddress(string(abi.encodePacked(".", _targetEnv, ".FreeCollectModule")))
-    );
-
-    moduleGlobals = ModuleGlobals(_json.readAddress(string(abi.encodePacked(".", _targetEnv, ".ModuleGlobals"))));
 
     currency = new Currency();
     nft = new NFT();
+    round = new MockRoundImplementation();
+
+    // Deploy ad whitelist the GitcoinCollectModule.
+    gitcoinCollectModule = new GitcoinCollectModule(hubProxyAddr);
+    collectModuleAddr = address(gitcoinCollectModule);
+
+    // deploy and initialize voting strategy
+    votingStrategy = new LensCollectVotingStrategyImplementation();
 
     firstProfileId = uint256(vm.load(hubProxyAddr, bytes32(uint256(22)))) + 1;
     console.log("firstProfileId:", firstProfileId);
@@ -100,18 +112,12 @@ contract BaseSetup is Test, ForkManagement {
     deployer = address(1);
 
     governance = hub.getGovernance();
-    treasury = moduleGlobals.getTreasury();
-
-    TREASURY_FEE_BPS = moduleGlobals.getTreasuryFee();
   }
 
   function deployBaseContracts() internal {
     firstProfileId = 1;
     deployer = address(1);
     governance = address(2);
-    treasury = address(3);
-
-    TREASURY_FEE_BPS = 50;
 
     ///////////////////////////////////////// Start deployments.
     vm.startPrank(deployer);
@@ -138,13 +144,16 @@ contract BaseSetup is Test, ForkManagement {
     // Cast proxy to LensHub interface.
     hub = LensHub(address(hubAsProxy));
 
-    // Deploy the FreeCollectModule.
-    freeCollectModule = new FreeCollectModule(hubProxyAddr);
-
-    moduleGlobals = new ModuleGlobals(governance, treasury, TREASURY_FEE_BPS);
-
     currency = new Currency();
     nft = new NFT();
+    round = new MockRoundImplementation();
+
+    // Deploy ad whitelist the GitcoinCollectModule.
+    gitcoinCollectModule = new GitcoinCollectModule(hubProxyAddr);
+    collectModuleAddr = address(gitcoinCollectModule);
+
+    // deploy and initialize voting strategy
+    votingStrategy = new LensCollectVotingStrategyImplementation();
 
     vm.stopPrank();
     ///////////////////////////////////////// End deployments.
@@ -173,16 +182,16 @@ contract BaseSetup is Test, ForkManagement {
     ///////////////////////////////////////// Start governance actions.
     vm.startPrank(governance);
 
-    if (hub.getState() != DataTypes.ProtocolState.Unpaused) hub.setState(DataTypes.ProtocolState.Unpaused);
-
-    // Whitelist the FreeCollectModule.
-    hub.whitelistCollectModule(address(freeCollectModule), true);
+    if (hub.getState() != LensDataTypes.ProtocolState.Unpaused) hub.setState(LensDataTypes.ProtocolState.Unpaused);
 
     // Whitelist the test contract as a profile creator
     hub.whitelistProfileCreator(me, true);
 
-    // Whitelist mock currency in ModuleGlobals
-    moduleGlobals.whitelistCurrency(address(currency), true);
+    hub.whitelistCollectModule(collectModuleAddr, true);
+
+    // assign the voting strategy to the round
+    round.setVotingStrategy(address(votingStrategy));
+    round.setApplicationStatus(1, 1);
 
     vm.stopPrank();
     ///////////////////////////////////////// End governance actions.

@@ -2,8 +2,6 @@
 pragma solidity ^0.8.10;
 
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {IAccessControlEnumerable} from "@openzeppelin/contracts/access/IAccessControlEnumerable.sol";
 import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
@@ -14,9 +12,8 @@ import {
 } from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 
 import {ILensCollectVotingStrategy} from "../interfaces/ILensCollectVotingStrategy.sol";
-import {IGitcoinCollectModule, ProfilePublicationData} from "../interfaces/IGitcoinCollectModule.sol";
-import {Errors, LensErrors} from "../utils/Errors.sol";
-import {Events} from "../utils/Events.sol";
+import {Errors} from "../libraries/Errors.sol";
+import {Events} from "../libraries/Events.sol";
 
 /**
  * @notice Gitcoin grants round voting strategy. This is a modified version of the
@@ -44,9 +41,6 @@ contract LensCollectVotingStrategyImplementation is
   /// @notice The round contract address
   address public roundAddress;
 
-  /// @notice Mapping to store casted votes by collect NFT
-  mapping(address => mapping(uint256 => uint256)) internal votesByCollectNFT;
-
   // --- Modifiers ---
 
   modifier onlyRoundContract() {
@@ -65,7 +59,7 @@ contract LensCollectVotingStrategyImplementation is
    */
   function init() external override {
     if (roundAddress != address(0)) {
-      revert LensErrors.Initialized();
+      revert Errors.Initialized();
     }
 
     roundAddress = msg.sender;
@@ -79,7 +73,7 @@ contract LensCollectVotingStrategyImplementation is
    */
   function initialize(address _collectModule) external initializer {
     if (collectModule != address(0)) {
-      revert LensErrors.Initialized();
+      revert Errors.Initialized();
     }
 
     collectModule = _collectModule;
@@ -103,98 +97,57 @@ contract LensCollectVotingStrategyImplementation is
     bytes[] calldata encodedVotes,
     address voterAddress
   ) external payable override nonReentrant onlyRoundContract {
-    /// @dev iterate over multiple donations and transfer funds
+    /// @dev iterate over multiple donations and process each contribution
     for (uint256 i = 0; i < encodedVotes.length; i++) {
-      /// @dev decode encoded vote
-      (
-        address _token,
-        uint256 _amount,
-        address _grantAddress,
-        bytes32 _projectId,
-        bytes32 _pubId,
-        uint256 _collectTokenId
-      ) = abi.decode(encodedVotes[i], (address, uint256, address, bytes32, bytes32, uint256));
-
-      if (_collectTokenId != 0 && uint256(_pubId) != 0) {
-        _voteWithCollect(_token, _amount, _grantAddress, uint256(_projectId), uint256(_pubId), _collectTokenId);
-      } else {
-        _voteWithTransfer(_token, _amount, voterAddress, _grantAddress, _projectId);
-      }
+      _processContribution(encodedVotes[i], voterAddress);
     }
   }
 
-  function _voteWithCollect(
-    address token,
-    uint256 amount,
-    address grantAddress,
-    uint256 profileId,
-    uint256 pubId,
-    uint256 collectTokenId
-  ) internal {
-    _validateAndStoreCollect(token, amount, profileId, pubId, collectTokenId);
+  function _processContribution(bytes memory data, address caller) internal {
+    (
+      address _token,
+      uint256 _amount,
+      address _grantAddress,
+      bytes32 _projectId,
+      uint256 _applicationIndex,
+      address _voter
+    ) = _getContributionData(data, caller);
 
-    ProfilePublicationData memory pubData = IGitcoinCollectModule(collectModule).getPublicationData(profileId, pubId);
-    address voterAddress = IERC721(pubData.collectToken).ownerOf(collectTokenId);
+    // if the vote was not submitted through Lens we need to transfer tokens
+    // from the voter to the grant address
+    if (caller != collectModule) {
+      _transferAmount(_token, _amount, _grantAddress, _voter);
+    }
 
     /// @dev emit event for transfer
-    emit Events.Voted(token, amount, voterAddress, grantAddress, bytes32(profileId), msg.sender);
+    emit Events.Voted(_token, _amount, _voter, _grantAddress, _projectId, _applicationIndex, msg.sender);
   }
 
-  function _voteWithTransfer(
-    address token,
-    uint256 amount,
-    address voterAddress,
-    address grantAddress,
-    bytes32 projectId
-  ) internal {
-    _transferAmount(token, amount, grantAddress, voterAddress);
-
-    /// @dev emit event for transfer
-    emit Events.Voted(token, amount, voterAddress, grantAddress, projectId, msg.sender);
-  }
-
-  /**
-   * @dev Validates and store a vote casted via Lens collect module
-   *
-   * This should be called by vote()
-   *
-   * @param token Address of the token used by the collector (__passed from the collector!__)
-   * @param amount Collected amount (__passed from the collector!__)
-   * @param profileId Lens profile id of the grant
-   * @param pubId Lens publication id of the grant
-   * @param collectTokenId Collect nft index assigned to this vote
-   */
-  function _validateAndStoreCollect(
-    address token,
-    uint256 amount,
-    uint256 profileId,
-    uint256 pubId,
-    uint256 collectTokenId
-  ) internal {
-    // validate data passed from the collector
-    ProfilePublicationData memory pubData = IGitcoinCollectModule(collectModule).getPublicationData(profileId, pubId);
-
-    if (pubData.collectToken == address(0)) {
-      revert Errors.VoteInvalid();
+  function _getContributionData(
+    bytes memory data,
+    address voter
+  )
+    internal
+    view
+    returns (
+      address _token,
+      uint256 _amount,
+      address _grantAddress,
+      bytes32 _projectId,
+      uint256 _applicationIndex,
+      address _voter
+    )
+  {
+    if (voter == collectModule) {
+      return abi.decode(data, (address, uint256, address, bytes32, uint256, address));
     }
 
-    // prevent from casting multiple votes
-    if (votesByCollectNFT[pubData.collectToken][collectTokenId] > 0) {
-      revert Errors.VoteCasted();
-    }
+    _voter = voter;
 
-    uint256 collectedAmount = IGitcoinCollectModule(collectModule).getCollectNFTAmount(
-      profileId,
-      pubId,
-      collectTokenId
+    (_token, _amount, _grantAddress, _projectId, _applicationIndex) = abi.decode(
+      data,
+      (address, uint256, address, bytes32, uint256)
     );
-
-    if (collectedAmount != amount || pubData.currency != token) {
-      revert Errors.VoteInvalid();
-    }
-
-    // register the vote to prevent double counting
-    votesByCollectNFT[pubData.collectToken][collectTokenId] = collectedAmount;
   }
 
   /**

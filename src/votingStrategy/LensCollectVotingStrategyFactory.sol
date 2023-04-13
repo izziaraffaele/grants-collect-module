@@ -3,25 +3,14 @@ pragma solidity ^0.8.10;
 
 import {ClonesUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/ClonesUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {MetaPtr} from "../utils/MetaPtr.sol";
 
 import {ILensCollectVotingStrategy} from "../interfaces/ILensCollectVotingStrategy.sol";
+import {Events} from "../libraries/Events.sol";
 
 contract LensCollectVotingStrategyFactory is OwnableUpgradeable {
   address public votingContract;
 
   address public collectModule;
-
-  // --- Event ---
-
-  /// @notice Emitted when a Voting contract is updated
-  event VotingContractUpdated(address votingContractAddress);
-
-  /// @notice Emitted when a Voting contract is updated
-  event CollectModuleUpdated(address collectModuleAddress);
-
-  /// @notice Emitted when a new Voting is created
-  event VotingContractCreated(address indexed votingContractAddress, address indexed votingImplementation);
 
   /// @notice constructor function which ensure deployer is set as owner
   function initialize() external initializer {
@@ -41,7 +30,7 @@ contract LensCollectVotingStrategyFactory is OwnableUpgradeable {
     // slither-disable-next-line missing-zero-check
     votingContract = newVotingContract;
 
-    emit VotingContractUpdated(newVotingContract);
+    emit Events.VotingContractUpdated(newVotingContract);
   }
 
   /**
@@ -51,7 +40,7 @@ contract LensCollectVotingStrategyFactory is OwnableUpgradeable {
     // slither-disable-next-line missing-zero-check
     collectModule = newCollectModule;
 
-    emit CollectModuleUpdated(newCollectModule);
+    emit Events.CollectModuleUpdated(newCollectModule);
   }
 
   /**
@@ -59,8 +48,11 @@ contract LensCollectVotingStrategyFactory is OwnableUpgradeable {
    * and emits an event
    */
   function create() external returns (address) {
+    // create voting strategy
     address clone = ClonesUpgradeable.clone(votingContract);
-    emit VotingContractCreated(clone, votingContract);
+    emit Events.VotingContractCreated(clone, votingContract);
+
+    // initialize voting strategy
     ILensCollectVotingStrategy(clone).initialize(collectModule);
 
     return clone;

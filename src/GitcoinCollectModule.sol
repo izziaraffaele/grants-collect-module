@@ -8,14 +8,10 @@ import {ILensHub} from "@aave/lens-protocol/contracts/interfaces/ILensHub.sol";
 import {ModuleBase} from "@aave/lens-protocol/contracts/core/modules/ModuleBase.sol";
 import {FollowValidationModuleBase} from "@aave/lens-protocol/contracts/core/modules/FollowValidationModuleBase.sol";
 
-import {LensErrors} from "./utils/Errors.sol";
+import {Errors} from "./libraries/Errors.sol";
+import {DataTypes} from "./libraries/DataTypes.sol";
 import {IRoundImplementation} from "./interfaces/IRoundImplementation.sol";
-// prettier-ignore
-import {
-  IGitcoinCollectModule,
-  ProfilePublicationData,
-  RoundApplicationData
-} from "./interfaces/IGitcoinCollectModule.sol";
+import {IGitcoinCollectModule} from "./interfaces/IGitcoinCollectModule.sol";
 
 /**
  * @notice Lens collect module for Gitcoin grants rounds.
@@ -34,8 +30,7 @@ contract GitcoinCollectModule is IGitcoinCollectModule, FollowValidationModuleBa
 
   // --- Data ---
 
-  mapping(uint256 => mapping(uint256 => ProfilePublicationData)) internal dataByPublicationByProfile;
-  mapping(address => mapping(uint256 => uint256)) internal amountByCollectNFT;
+  mapping(uint256 => mapping(uint256 => DataTypes.ProfilePublicationData)) internal dataByPublicationByProfile;
 
   // --- Core methods ---
 
@@ -48,7 +43,7 @@ contract GitcoinCollectModule is IGitcoinCollectModule, FollowValidationModuleBa
    *
    * @param profileId The token ID of the profile publishing the publication.
    * @param pubId The associated publication's LensHub publication ID.
-   * @param data Encoded RoundApplicationData.
+   * @param data Encoded ProfilePublicationInitData.
    *
    * @return bytes An abi encoded byte array encapsulating the execution's state changes. This will be emitted by the
    * hub alongside the collect module's address and should be consumed by front ends.
@@ -58,21 +53,26 @@ contract GitcoinCollectModule is IGitcoinCollectModule, FollowValidationModuleBa
     uint256 pubId,
     bytes calldata data
   ) external onlyHub returns (bytes memory) {
-    RoundApplicationData memory initData = abi.decode(data, (RoundApplicationData));
+    DataTypes.ProfilePublicationInitData memory initData = abi.decode(data, (DataTypes.ProfilePublicationInitData));
 
     if (initData.referralFee > BPS_MAX || initData.roundAddress == address(0) || initData.recipient == address(0)) {
-      revert LensErrors.InitParamsInvalid();
+      revert Errors.InitParamsInvalid();
     }
 
-    // apply to the round
-    IRoundImplementation(initData.roundAddress).applyToRound(bytes32(profileId), initData.applicationMetaPtr);
+    // validate application status
+    uint256 applicationStatus = IRoundImplementation(initData.roundAddress).getApplicationStatus(
+      initData.applicationIndex
+    );
+
+    if (applicationStatus != 1) {
+      revert Errors.InitParamsInvalid();
+    }
 
     // store publication data
-    dataByPublicationByProfile[profileId][pubId] = ProfilePublicationData({
+    dataByPublicationByProfile[profileId][pubId] = DataTypes.ProfilePublicationData({
       roundAddress: initData.roundAddress,
-      // Lens collect NFTs are initialized within the first collect
-      // Calling ILensHub.getCollectNFT at this stage would return a zero-address
-      collectToken: address(0),
+      projectId: initData.projectId,
+      applicationIndex: initData.applicationIndex,
       currency: initData.currency,
       currentCollects: 0,
       recipient: initData.recipient,
@@ -92,26 +92,11 @@ contract GitcoinCollectModule is IGitcoinCollectModule, FollowValidationModuleBa
    *
    * @return The ProfilePublicationData struct mapped to that publication.
    */
-  function getPublicationData(uint256 profileId, uint256 pubId) external view returns (ProfilePublicationData memory) {
-    return dataByPublicationByProfile[profileId][pubId];
-  }
-
-  /**
-   * @notice Returns the amount collected for a given collect NFT id attached to a given publication.
-   *
-   * @param profileId The token ID of the profile mapped to the publication to query.
-   * @param pubId The publication ID of the publication to query.
-   * @param collectTokenID The collect NFT ID of the publication to query.
-   *
-   * @return The amount collected for the given collect NFT ID
-   */
-  function getCollectNFTAmount(
+  function getPublicationData(
     uint256 profileId,
-    uint256 pubId,
-    uint256 collectTokenID
-  ) external view returns (uint256) {
-    address collectNFT = dataByPublicationByProfile[profileId][pubId].collectToken;
-    return amountByCollectNFT[collectNFT][collectTokenID];
+    uint256 pubId
+  ) external view returns (DataTypes.ProfilePublicationData memory) {
+    return dataByPublicationByProfile[profileId][pubId];
   }
 
   /**
@@ -137,14 +122,19 @@ contract GitcoinCollectModule is IGitcoinCollectModule, FollowValidationModuleBa
   ) external onlyHub {
     _validateAndStoreCollect(referrerProfileId, collector, profileId, pubId, data);
 
-    uint256 amount;
+    uint256 amount = calculateFee(profileId, pubId, data);
+    address currency = dataByPublicationByProfile[profileId][pubId].currency;
+    _validateDataIsExpected(data, currency);
 
-    if (referrerProfileId == profileId) {
-      amount = _processCollect(collector, profileId, pubId, data);
-    } else {
-      amount = _processCollectWithReferral(referrerProfileId, collector, profileId, pubId, data);
+    if (referrerProfileId != profileId) {
+      // transfer referral fees and returns the adjusted amount (amount - referral fees)
+      amount = _transferToReferrals(currency, referrerProfileId, collector, profileId, pubId, amount, data);
     }
-    _vote(profileId, pubId, amount, dataByPublicationByProfile[profileId][pubId].currentCollects);
+
+    _vote(collector, profileId, pubId, amount);
+
+    // Send amount to all recipients
+    _transferToRecipients(currency, collector, profileId, pubId, amount);
   }
 
   /**
@@ -175,88 +165,13 @@ contract GitcoinCollectModule is IGitcoinCollectModule, FollowValidationModuleBa
     address collector,
     uint256 profileId,
     uint256 pubId,
-    bytes calldata data
+    bytes calldata
   ) internal virtual {
     if (dataByPublicationByProfile[profileId][pubId].followerOnly) {
       _checkFollowValidity(profileId, collector);
     }
 
-    if (dataByPublicationByProfile[profileId][pubId].collectToken == address(0)) {
-      dataByPublicationByProfile[profileId][pubId].collectToken = ILensHub(HUB).getCollectNFT(profileId, pubId);
-    }
-
-    address collectNFT = dataByPublicationByProfile[profileId][pubId].collectToken;
-    uint256 nextCollect = ++dataByPublicationByProfile[profileId][pubId].currentCollects;
-    (, uint256 amount) = abi.decode(data, (address, uint256));
-
-    amountByCollectNFT[collectNFT][nextCollect] = amount;
-  }
-
-  /**
-   * @dev Internal processing of a collect:
-   *  1. Calculation of fees
-   *  2. Validation that fees are what collector expected
-   *  3. Transfer of fees to recipient(-s) and treasury
-   *
-   * @param collector The address that will collect the post.
-   * @param profileId The token ID of the profile associated with the publication being collected.
-   * @param pubId The LensHub publication ID associated with the publication being collected.
-   * @param data Arbitrary data __passed from the collector!__ to be decoded.
-   */
-  function _processCollect(
-    address collector,
-    uint256 profileId,
-    uint256 pubId,
-    bytes calldata data
-  ) internal returns (uint256) {
-    uint256 amount = calculateFee(profileId, pubId, data);
-    address currency = dataByPublicationByProfile[profileId][pubId].currency;
-    _validateDataIsExpected(data, currency);
-
-    // Send amount to all recipients
-    _transferToRecipients(currency, collector, profileId, pubId, amount);
-
-    return amount;
-  }
-
-  /**
-   * @dev Internal processing of a collect with a referral(-s).
-   *
-   * Same as _processCollect, but also includes transfer to referral(-s):
-   *  1. Calculation of fees
-   *  2. Validation that fees are what collector expected
-   *  3. Transfer of fees to recipient(-s), referral(-s) and treasury
-   *
-   * @param referrerProfileId The address of the referral.
-   * @param collector The address that will collect the post.
-   * @param profileId The token ID of the profile associated with the publication being collected.
-   * @param pubId The LensHub publication ID associated with the publication being collected.
-   * @param data Arbitrary data __passed from the collector!__ to be decoded.
-   */
-  function _processCollectWithReferral(
-    uint256 referrerProfileId,
-    address collector,
-    uint256 profileId,
-    uint256 pubId,
-    bytes calldata data
-  ) internal returns (uint256) {
-    uint256 amount = calculateFee(profileId, pubId, data);
-    address currency = dataByPublicationByProfile[profileId][pubId].currency;
-    _validateDataIsExpected(data, currency);
-
-    uint256 adjustedAmount = _transferToReferrals(
-      currency,
-      referrerProfileId,
-      collector,
-      profileId,
-      pubId,
-      amount,
-      data
-    );
-
-    _transferToRecipients(currency, collector, profileId, pubId, adjustedAmount);
-
-    return adjustedAmount;
+    ++dataByPublicationByProfile[profileId][pubId].currentCollects;
   }
 
   /**
@@ -264,25 +179,24 @@ contract GitcoinCollectModule is IGitcoinCollectModule, FollowValidationModuleBa
    *
    * This should be called by processCollect()
    *
+   * @param collector The collector address.
    * @param profileId The token ID of the profile associated with the publication being collected.
    * @param pubId The LensHub publication ID associated with the publication being collected.
    * @param amount Vote amount
-   * @param collectTokenId ID of the collect NFT for the current collect action
    */
-  function _vote(uint256 profileId, uint256 pubId, uint256 amount, uint256 collectTokenId) internal {
+  function _vote(address collector, uint256 profileId, uint256 pubId, uint256 amount) internal {
     bytes[] memory encodedVotes = _toBytesArray(
       abi.encode(
         dataByPublicationByProfile[profileId][pubId].currency,
         amount,
         dataByPublicationByProfile[profileId][pubId].recipient,
-        bytes32(profileId),
-        bytes32(pubId),
-        collectTokenId
+        dataByPublicationByProfile[profileId][pubId].projectId,
+        dataByPublicationByProfile[profileId][pubId].applicationIndex,
+        collector
       )
     );
 
-    address roundAddress = dataByPublicationByProfile[profileId][pubId].roundAddress;
-    IRoundImplementation(roundAddress).vote(encodedVotes);
+    IRoundImplementation(dataByPublicationByProfile[profileId][pubId].roundAddress).vote(encodedVotes);
   }
 
   /**
@@ -352,7 +266,7 @@ contract GitcoinCollectModule is IGitcoinCollectModule, FollowValidationModuleBa
 
   function _validateDataIsExpected(bytes calldata data, address currency) internal pure virtual {
     (address decodedCurrency, uint256 decodedAmount) = abi.decode(data, (address, uint256));
-    if (decodedAmount == 0 || decodedCurrency != currency) revert LensErrors.ModuleDataMismatch();
+    if (decodedAmount == 0 || decodedCurrency != currency) revert Errors.ModuleDataMismatch();
   }
 
   function _toBytesArray(bytes memory n) internal pure returns (bytes[] memory) {

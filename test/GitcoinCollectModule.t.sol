@@ -4,12 +4,6 @@ pragma solidity ^0.8.10;
 
 import "./BaseSetup.sol";
 import {GitcoinCollectModuleBase} from "./GitcoinCollectModule.base.sol";
-import {MockRoundImplementation} from "./mocks/MockRoundImplementation.sol";
-
-import "../src/interfaces/IGitcoinCollectModule.sol";
-import "../src/utils/MetaPtr.sol";
-import "../src/utils/Events.sol";
-import {GitcoinCollectModule} from "../src/GitcoinCollectModule.sol";
 
 /////////
 // Publication Creation with GitcoinCollectModule
@@ -19,7 +13,7 @@ contract GitcoinCollectModule_Publication is GitcoinCollectModuleBase {
 
   constructor() GitcoinCollectModuleBase() {
     userProfileId = hub.createProfile(
-      DataTypes.CreateProfileData({
+      LensDataTypes.CreateProfileData({
         to: me,
         handle: "user",
         imageURI: OTHER_MOCK_URI,
@@ -31,21 +25,22 @@ contract GitcoinCollectModule_Publication is GitcoinCollectModuleBase {
   }
 
   function setUp() public {
-    exampleInitData.roundAddress = roundImplementation;
+    exampleInitData.roundAddress = address(round);
+    exampleInitData.projectId = MOCK_PROJECT_ID;
+    exampleInitData.applicationIndex = 1;
     exampleInitData.currency = address(currency);
     exampleInitData.referralFee = 0;
     exampleInitData.followerOnly = false;
-    exampleInitData.applicationMetaPtr = exampleApplicationMetaPtr;
     exampleInitData.recipient = me;
   }
 
   function hubPostWithRevert(bytes4 expectedError) public virtual {
     vm.expectRevert(expectedError);
     hub.post(
-      DataTypes.PostData({
+      LensDataTypes.PostData({
         profileId: userProfileId,
         contentURI: MOCK_URI,
-        collectModule: gitcoinCollectModule,
+        collectModule: collectModuleAddr,
         collectModuleInitData: getEncodedInitData(),
         referenceModule: address(0),
         referenceModuleInitData: ""
@@ -80,20 +75,16 @@ contract GitcoinCollectModule_Publication is GitcoinCollectModuleBase {
 
   function testCannotPostIfCalledFromNonHubAddress() public {
     vm.expectRevert(LensErrors.NotHub.selector);
-    GitcoinCollectModule(gitcoinCollectModule).initializePublicationCollectModule(
-      userProfileId,
-      1,
-      getEncodedInitData()
-    );
+    gitcoinCollectModule.initializePublicationCollectModule(userProfileId, 1, getEncodedInitData());
   }
 
   function testCannotPostWithWrongInitDataFormat() public {
     vm.expectRevert();
     hub.post(
-      DataTypes.PostData({
+      LensDataTypes.PostData({
         profileId: userProfileId,
         contentURI: MOCK_URI,
-        collectModule: gitcoinCollectModule,
+        collectModule: collectModuleAddr,
         collectModuleInitData: abi.encode(REFERRAL_FEE_BPS, true),
         referenceModule: address(0),
         referenceModuleInitData: ""
@@ -104,10 +95,10 @@ contract GitcoinCollectModule_Publication is GitcoinCollectModuleBase {
   // Scenarios
   function testCreatePublicationWithCorrectInitData() public {
     hub.post(
-      DataTypes.PostData({
+      LensDataTypes.PostData({
         profileId: userProfileId,
         contentURI: MOCK_URI,
-        collectModule: gitcoinCollectModule,
+        collectModule: collectModuleAddr,
         collectModuleInitData: getEncodedInitData(),
         referenceModule: address(0),
         referenceModuleInitData: ""
@@ -117,10 +108,10 @@ contract GitcoinCollectModule_Publication is GitcoinCollectModuleBase {
 
   function testCreatePublicationEmitsExpectedEvents() public {
     uint256 pubId = hub.post(
-      DataTypes.PostData({
+      LensDataTypes.PostData({
         profileId: userProfileId,
         contentURI: MOCK_URI,
-        collectModule: gitcoinCollectModule,
+        collectModule: collectModuleAddr,
         collectModuleInitData: getEncodedInitData(),
         referenceModule: address(0),
         referenceModuleInitData: ""
@@ -131,16 +122,11 @@ contract GitcoinCollectModule_Publication is GitcoinCollectModuleBase {
   }
 
   function testCreatePublicationApplyToRound() public {
-    vm.expectCall(
-      roundImplementation,
-      abi.encodeWithSelector(MockRoundImplementation.applyToRound.selector, bytes32(userProfileId))
-    );
-
     uint256 pubId = hub.post(
-      DataTypes.PostData({
+      LensDataTypes.PostData({
         profileId: userProfileId,
         contentURI: MOCK_URI,
-        collectModule: gitcoinCollectModule,
+        collectModule: collectModuleAddr,
         collectModuleInitData: getEncodedInitData(),
         referenceModule: address(0),
         referenceModuleInitData: ""
@@ -153,20 +139,21 @@ contract GitcoinCollectModule_Publication is GitcoinCollectModuleBase {
   function testFuzzCreatePublicationWithDifferentInitData(uint16 referralFee, bool followerOnly) public virtual {
     referralFee = uint16(bound(referralFee, 0, TREASURY_FEE_MAX_BPS));
 
-    RoundApplicationData memory fuzzyInitData = RoundApplicationData({
-      roundAddress: roundImplementation,
+    DataTypes.ProfilePublicationInitData memory fuzzyInitData = DataTypes.ProfilePublicationInitData({
+      roundAddress: address(round),
+      projectId: MOCK_PROJECT_ID,
+      applicationIndex: 1,
       currency: address(currency),
       referralFee: referralFee,
       followerOnly: followerOnly,
-      applicationMetaPtr: exampleApplicationMetaPtr,
       recipient: me
     });
 
     hub.post(
-      DataTypes.PostData({
+      LensDataTypes.PostData({
         profileId: userProfileId,
         contentURI: MOCK_URI,
-        collectModule: gitcoinCollectModule,
+        collectModule: collectModuleAddr,
         collectModuleInitData: abi.encode(fuzzyInitData),
         referenceModule: address(0),
         referenceModuleInitData: ""
@@ -177,20 +164,21 @@ contract GitcoinCollectModule_Publication is GitcoinCollectModuleBase {
   function testFuzzFetchedPublicationDataShouldBeAccurate(uint16 referralFee, bool followerOnly) public virtual {
     referralFee = uint16(bound(referralFee, 0, TREASURY_FEE_MAX_BPS));
 
-    RoundApplicationData memory fuzzyInitData = RoundApplicationData({
-      roundAddress: roundImplementation,
+    DataTypes.ProfilePublicationInitData memory fuzzyInitData = DataTypes.ProfilePublicationInitData({
+      roundAddress: address(round),
+      projectId: MOCK_PROJECT_ID,
+      applicationIndex: 1,
       currency: address(currency),
       referralFee: referralFee,
       followerOnly: followerOnly,
-      applicationMetaPtr: exampleApplicationMetaPtr,
       recipient: me
     });
 
     uint256 pubId = hub.post(
-      DataTypes.PostData({
+      LensDataTypes.PostData({
         profileId: userProfileId,
         contentURI: MOCK_URI,
-        collectModule: gitcoinCollectModule,
+        collectModule: collectModuleAddr,
         collectModuleInitData: abi.encode(fuzzyInitData),
         referenceModule: address(0),
         referenceModuleInitData: ""
@@ -198,12 +186,8 @@ contract GitcoinCollectModule_Publication is GitcoinCollectModuleBase {
     );
     assert(pubId > 0);
 
-    ProfilePublicationData memory fetchedData = GitcoinCollectModule(gitcoinCollectModule).getPublicationData(
-      userProfileId,
-      pubId
-    );
+    DataTypes.ProfilePublicationData memory fetchedData = gitcoinCollectModule.getPublicationData(userProfileId, pubId);
     assertEq(fetchedData.roundAddress, fuzzyInitData.roundAddress);
-    assertEq(fetchedData.collectToken, hub.getCollectNFT(userProfileId, pubId));
     assertEq(fetchedData.currency, fuzzyInitData.currency);
     assertEq(fetchedData.referralFee, fuzzyInitData.referralFee);
     assertEq(fetchedData.followerOnly, fuzzyInitData.followerOnly);
@@ -222,7 +206,7 @@ contract GitcoinCollectModule_Collect is GitcoinCollectModuleBase {
 
   constructor() GitcoinCollectModuleBase() {
     publisherProfileId = hub.createProfile(
-      DataTypes.CreateProfileData({
+      LensDataTypes.CreateProfileData({
         to: publisher,
         handle: "pub",
         imageURI: OTHER_MOCK_URI,
@@ -233,7 +217,7 @@ contract GitcoinCollectModule_Collect is GitcoinCollectModuleBase {
     );
 
     userProfileId = hub.createProfile(
-      DataTypes.CreateProfileData({
+      LensDataTypes.CreateProfileData({
         to: user,
         handle: "user",
         imageURI: OTHER_MOCK_URI,
@@ -245,19 +229,20 @@ contract GitcoinCollectModule_Collect is GitcoinCollectModuleBase {
   }
 
   function setUp() public virtual {
-    exampleInitData.roundAddress = roundImplementation;
+    exampleInitData.roundAddress = address(round);
+    exampleInitData.projectId = MOCK_PROJECT_ID;
+    exampleInitData.applicationIndex = 1;
     exampleInitData.currency = address(currency);
     exampleInitData.referralFee = 0;
     exampleInitData.followerOnly = false;
-    exampleInitData.applicationMetaPtr = exampleApplicationMetaPtr;
     exampleInitData.recipient = me;
 
     vm.prank(publisher);
     pubId = hub.post(
-      DataTypes.PostData({
+      LensDataTypes.PostData({
         profileId: publisherProfileId,
         contentURI: MOCK_URI,
-        collectModule: gitcoinCollectModule,
+        collectModule: collectModuleAddr,
         collectModuleInitData: getEncodedInitData(),
         referenceModule: address(0),
         referenceModuleInitData: ""
@@ -266,14 +251,14 @@ contract GitcoinCollectModule_Collect is GitcoinCollectModuleBase {
 
     currency.mint(user, type(uint256).max);
     vm.prank(user);
-    currency.approve(gitcoinCollectModule, type(uint256).max);
+    currency.approve(collectModuleAddr, type(uint256).max);
   }
 
   // Negatives
 
   function testCannotCollectIfCalledFromNonHubAddress() public {
     vm.expectRevert(LensErrors.NotHub.selector);
-    GitcoinCollectModule(gitcoinCollectModule).processCollect(
+    gitcoinCollectModule.processCollect(
       publisherProfileId,
       me,
       publisherProfileId,
@@ -302,8 +287,8 @@ contract GitcoinCollectModule_Collect is GitcoinCollectModuleBase {
 
   function testCannotCollectWithoutEnoughApproval() public {
     vm.startPrank(user);
-    currency.approve(gitcoinCollectModule, 0);
-    assert(currency.allowance(user, gitcoinCollectModule) < 1 ether);
+    currency.approve(collectModuleAddr, 0);
+    assert(currency.allowance(user, collectModuleAddr) < 1 ether);
     vm.expectRevert("ERC20: insufficient allowance");
     hub.collect(publisherProfileId, pubId, abi.encode(exampleInitData.currency, 1 ether));
     vm.stopPrank();
@@ -313,7 +298,7 @@ contract GitcoinCollectModule_Collect is GitcoinCollectModuleBase {
     vm.startPrank(user);
     currency.transfer(address(1), currency.balanceOf(user));
     assertEq(currency.balanceOf(user), 0);
-    assert(currency.allowance(user, gitcoinCollectModule) >= 1 ether);
+    assert(currency.allowance(user, collectModuleAddr) >= 1 ether);
     vm.expectRevert("ERC20: transfer amount exceeds balance");
     hub.collect(publisherProfileId, pubId, abi.encode(exampleInitData.currency, 1 ether));
     vm.stopPrank();
@@ -322,10 +307,10 @@ contract GitcoinCollectModule_Collect is GitcoinCollectModuleBase {
   function hubPost() public virtual returns (uint256) {
     vm.prank(publisher);
     uint256 newPubId = hub.post(
-      DataTypes.PostData({
+      LensDataTypes.PostData({
         profileId: publisherProfileId,
         contentURI: MOCK_URI,
-        collectModule: gitcoinCollectModule,
+        collectModule: collectModuleAddr,
         collectModuleInitData: getEncodedInitData(),
         referenceModule: address(0),
         referenceModuleInitData: ""
@@ -361,8 +346,9 @@ contract GitcoinCollectModule_Collect is GitcoinCollectModuleBase {
       1 ether,
       user,
       exampleInitData.recipient,
-      bytes32(publisherProfileId),
-      roundImplementation
+      MOCK_PROJECT_ID,
+      1,
+      address(round)
     );
 
     vm.prank(user);
@@ -378,8 +364,9 @@ contract GitcoinCollectModule_Collect is GitcoinCollectModuleBase {
       1 ether,
       user,
       exampleInitData.recipient,
-      bytes32(publisherProfileId),
-      roundImplementation
+      MOCK_PROJECT_ID,
+      1,
+      address(round)
     );
 
     vm.prank(user);

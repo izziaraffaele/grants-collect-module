@@ -2,25 +2,10 @@
 pragma solidity ^0.8.10;
 
 import "forge-std/Test.sol";
-import {LensCollectVotingStrategyImplementation} from "../../src/votingStrategy/LensCollectVotingStrategyImplementation.sol";
+import "../BaseSetup.sol";
+import {LensCollectVotingStrategyFactoryBase} from "./LensCollectVotingStrategyFactory.base.sol";
+
 import {LensCollectVotingStrategyFactory} from "../../src/votingStrategy/LensCollectVotingStrategyFactory.sol";
-import {GitcoinCollectModule} from "../../src/GitcoinCollectModule.sol";
-
-contract LensCollectVotingStrategyFactoryBase is Test {
-  address deployer = address(1);
-  address collectModule = address(2);
-  address votingContract;
-
-  LensCollectVotingStrategyFactory factory;
-
-  constructor() Test() {
-    vm.startPrank(deployer);
-    votingContract = address(new LensCollectVotingStrategyImplementation());
-
-    factory = new LensCollectVotingStrategyFactory();
-    vm.stopPrank();
-  }
-}
 
 contract LensCollectVotingStrategyFactory_Initialize is LensCollectVotingStrategyFactoryBase {
   constructor() LensCollectVotingStrategyFactoryBase() {
@@ -43,12 +28,6 @@ contract LensCollectVotingStrategyFactory_Initialize is LensCollectVotingStrateg
 }
 
 contract LensCollectVotingStrategyFactory_Update is LensCollectVotingStrategyFactoryBase {
-  /// @notice Emitted when a Voting contract is updated
-  event VotingContractUpdated(address votingContractAddress);
-
-  /// @notice Emitted when a Voting contract is updated
-  event CollectModuleUpdated(address collectModuleAddress);
-
   constructor() LensCollectVotingStrategyFactoryBase() {
     vm.prank(deployer);
     factory.initialize();
@@ -56,38 +35,38 @@ contract LensCollectVotingStrategyFactory_Update is LensCollectVotingStrategyFac
 
   function testCannotUpdateVotingContractWhenNotOwner() external {
     vm.expectRevert();
-    factory.updateVotingContract(votingContract);
+    factory.updateVotingContract(votingContractAddr);
   }
 
   function testCannotUpdateCollectModuleContractWhenNotOwner() external {
     vm.expectRevert();
-    factory.updateCollectModule(collectModule);
+    factory.updateCollectModule(collectModuleAddr);
   }
 
   function testUpdateVotingContractShouldEmitExpectedEvents() external {
     vm.expectEmit(true, true, true, true);
-    emit VotingContractUpdated(votingContract);
+    emit Events.VotingContractUpdated(votingContractAddr);
 
     vm.prank(deployer);
-    factory.updateVotingContract(votingContract);
+    factory.updateVotingContract(votingContractAddr);
   }
 
   function testUpdateCollectModuleShouldEmitExpectedEvents() external {
     vm.expectEmit(true, true, true, true);
-    emit CollectModuleUpdated(collectModule);
+    emit Events.CollectModuleUpdated(collectModuleAddr);
 
     vm.prank(deployer);
-    factory.updateCollectModule(collectModule);
+    factory.updateCollectModule(collectModuleAddr);
   }
 
   function testUpdateShouldUpdateExpectedValues() external {
     vm.prank(deployer);
-    factory.updateVotingContract(votingContract);
-    assertEq(factory.votingContract(), votingContract);
+    factory.updateVotingContract(votingContractAddr);
+    assertEq(factory.votingContract(), votingContractAddr);
 
     vm.prank(deployer);
-    factory.updateCollectModule(collectModule);
-    assertEq(factory.collectModule(), collectModule);
+    factory.updateCollectModule(collectModuleAddr);
+    assertEq(factory.collectModule(), collectModuleAddr);
   }
 }
 
@@ -99,21 +78,21 @@ contract LensCollectVotingStrategyFactory_Create is LensCollectVotingStrategyFac
 
   function setUp() external {
     vm.startPrank(deployer);
-    factory.updateVotingContract(votingContract);
-    factory.updateCollectModule(collectModule);
+    factory.updateVotingContract(votingContractAddr);
+    factory.updateCollectModule(collectModuleAddr);
     vm.stopPrank();
   }
 
   function testCreateReturnsVotingInstanceAddress() external {
-    address votingAddress = factory.create();
-    assert(votingAddress != address(0));
+    address _votingStrategy = factory.create();
+    assert(_votingStrategy != address(0));
   }
 
   function testCreateInitializedVotingInstance() external {
-    address votingAddress = factory.create();
+    address _votingStrategy = factory.create();
 
-    address initCollectModule = LensCollectVotingStrategyImplementation(votingAddress).collectModule();
-    assertEq(initCollectModule, collectModule);
+    address initCollectModule = LensCollectVotingStrategyImplementation(_votingStrategy).collectModule();
+    assertEq(initCollectModule, collectModuleAddr);
   }
 
   // function testCreateEmitExpectedEvents() {

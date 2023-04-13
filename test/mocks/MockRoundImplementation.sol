@@ -2,28 +2,25 @@
 pragma solidity ^0.8.10;
 
 import "forge-std/Test.sol";
-import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
-
 import "../../src/interfaces/ILensCollectVotingStrategy.sol";
 import "../../src/interfaces/IRoundImplementation.sol";
-import "../../src/utils/MetaPtr.sol";
 
-contract MockRoundImplementation is IRoundImplementation, AccessControlEnumerable {
-  bytes32 public constant ROUND_OPERATOR_ROLE = keccak256("ROUND_OPERATOR");
+contract MockRoundImplementation is IRoundImplementation {
+  ILensCollectVotingStrategy votingStrategy;
 
-  ILensCollectVotingStrategy public votingStrategy;
+  mapping(uint256 => uint256) internal _applications;
 
-  // --- Harness methods methods ---
-
-  function harnessSetVotingStrategy(address _votingStrategy) external {
+  function setVotingStrategy(address _votingStrategy) external {
     votingStrategy = ILensCollectVotingStrategy(_votingStrategy);
     votingStrategy.init();
   }
 
-  // --- Core methods ---
+  function setApplicationStatus(uint256 applicationIndex, uint256 status) external {
+    _applications[applicationIndex] = status;
+  }
 
-  function applyToRound(bytes32 projectID, MetaPtr calldata newApplicationMetaPtr) external view {
-    // empty
+  function getApplicationStatus(uint256 applicationIndex) external view returns (uint256) {
+    return _applications[applicationIndex];
   }
 
   function vote(bytes[] memory encodedVotes) external payable {

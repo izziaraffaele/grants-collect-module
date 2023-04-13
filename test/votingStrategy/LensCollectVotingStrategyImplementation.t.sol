@@ -3,11 +3,8 @@ pragma solidity ^0.8.10;
 
 import "forge-std/Test.sol";
 import "../BaseSetup.sol";
-import {MockRoundImplementation} from "../mocks/MockRoundImplementation.sol";
+
 import {LensCollectVotingStrategyImplementationBase} from "./LensCollectVotingStrategyImplementation.base.sol";
-import {Events} from "../../src/utils/Events.sol";
-import {Errors, LensErrors} from "../../src/utils/Errors.sol";
-import {IGitcoinCollectModule} from "../../src/interfaces/IGitcoinCollectModule.sol";
 import {LensCollectVotingStrategyImplementation} from "../../src/votingStrategy/LensCollectVotingStrategyImplementation.sol";
 
 contract LensCollectVotingStrategyImplementation_Init is LensCollectVotingStrategyImplementationBase {
@@ -16,23 +13,23 @@ contract LensCollectVotingStrategyImplementation_Init is LensCollectVotingStrate
   }
 
   function testCannotInitTwice() public virtual {
-    vm.prank(roundImplementation);
+    vm.prank(address(round));
     vm.expectRevert(LensErrors.Initialized.selector);
-    LensCollectVotingStrategyImplementation(votingStrategy).init();
+    votingStrategy.init();
   }
 
   function testInitShouldSetRoundAddress() public virtual {
-    assertEq(LensCollectVotingStrategyImplementation(votingStrategy).roundAddress(), roundImplementation);
+    assertEq(votingStrategy.roundAddress(), address(round));
   }
 
   function testCannotInitializeTwice() public virtual {
     vm.prank(deployer);
     vm.expectRevert(LensErrors.Initialized.selector);
-    LensCollectVotingStrategyImplementation(votingStrategy).init();
+    votingStrategy.init();
   }
 
   function testInitializeShouldSetCollectModule() public virtual {
-    assertEq(LensCollectVotingStrategyImplementation(votingStrategy).collectModule(), gitcoinCollectModule);
+    assertEq(votingStrategy.collectModule(), collectModuleAddr);
   }
 }
 
@@ -40,37 +37,41 @@ contract LensCollectVotingStrategyImplementation_Vote is LensCollectVotingStrate
   constructor() LensCollectVotingStrategyImplementationBase() {
     currency.mint(user, 1 ether);
     vm.prank(user);
-    currency.approve(votingStrategy, type(uint256).max);
+    currency.approve(address(votingStrategy), type(uint256).max);
   }
 
   function setUp() public {
-    exampleVoteData.token = exampleInitData.currency;
+    exampleVoteData.token = address(currency);
     exampleVoteData.amount = 1 ether;
     exampleVoteData.grantAddress = publisher;
-    exampleVoteData.projectId = bytes32("1");
+    exampleVoteData.projectId = MOCK_PROJECT_ID;
   }
 
   function testCannotVoteIfCalledFromNonRound() public virtual {
     vm.expectRevert(Errors.NotRoundContract.selector);
-    LensCollectVotingStrategyImplementation(votingStrategy).vote(getEncodedVotes(), user);
+    votingStrategy.vote(getEncodedVoteArrayData(), user);
   }
 
   function testCannotVoteWithoutEnoughApproval() public virtual {
+    address target = address(votingStrategy);
+
     vm.startPrank(user);
-    currency.approve(votingStrategy, 0);
-    assert(currency.allowance(user, votingStrategy) < 1 ether);
+    currency.approve(target, 0);
+    assert(currency.allowance(user, target) < 1 ether);
     vm.expectRevert("ERC20: insufficient allowance");
-    MockRoundImplementation(roundImplementation).vote(getEncodedVotes());
+    round.vote(getEncodedVoteArrayData());
     vm.stopPrank();
   }
 
   function testCannotVoteWithoutEnoughBalance() public virtual {
+    address target = address(votingStrategy);
+
     vm.startPrank(user);
     currency.transfer(address(1), currency.balanceOf(user));
     assertEq(currency.balanceOf(user), 0);
-    assert(currency.allowance(user, votingStrategy) >= 1 ether);
+    assert(currency.allowance(user, target) >= 1 ether);
     vm.expectRevert("ERC20: transfer amount exceeds balance");
-    MockRoundImplementation(roundImplementation).vote(getEncodedVotes());
+    round.vote(getEncodedVoteArrayData());
     vm.stopPrank();
   }
 
@@ -82,7 +83,7 @@ contract LensCollectVotingStrategyImplementation_Vote is LensCollectVotingStrate
 
     vm.prank(user);
     vm.expectRevert();
-    MockRoundImplementation(roundImplementation).vote(getEncodedVotes());
+    round.vote(getEncodedVoteArrayData());
   }
 
   function testVoteTransferAmountToGrantAddress() public virtual {
@@ -92,7 +93,7 @@ contract LensCollectVotingStrategyImplementation_Vote is LensCollectVotingStrate
     assertEq(currency.balanceOf(exampleVoteData.grantAddress), 0);
 
     vm.prank(user);
-    MockRoundImplementation(roundImplementation).vote(getEncodedVotes());
+    round.vote(getEncodedVoteArrayData());
     assertEq(currency.balanceOf(exampleVoteData.grantAddress), 1 ether);
     assertEq(currency.balanceOf(user), balanceBefore - 1 ether);
   }
@@ -105,7 +106,7 @@ contract LensCollectVotingStrategyImplementation_Vote is LensCollectVotingStrate
     assertEq(user.balance, 100 ether);
 
     vm.prank(user);
-    MockRoundImplementation(roundImplementation).vote{value: 1 ether}(getEncodedVotes());
+    round.vote{value: 1 ether}(getEncodedVoteArrayData());
 
     assertEq(exampleVoteData.grantAddress.balance, 1 ether);
     assertEq(user.balance, 99 ether);
@@ -119,10 +120,11 @@ contract LensCollectVotingStrategyImplementation_LensVote is LensCollectVotingSt
 
   uint256 pubId;
 
+  DataTypes.ProfilePublicationInitData exampleInitData;
+
   constructor() LensCollectVotingStrategyImplementationBase() {
-    exampleInitData.recipient = publisher;
     publisherProfileId = hub.createProfile(
-      DataTypes.CreateProfileData({
+      LensDataTypes.CreateProfileData({
         to: publisher,
         handle: "pub",
         imageURI: OTHER_MOCK_URI,
@@ -133,7 +135,7 @@ contract LensCollectVotingStrategyImplementation_LensVote is LensCollectVotingSt
     );
 
     userProfileId = hub.createProfile(
-      DataTypes.CreateProfileData({
+      LensDataTypes.CreateProfileData({
         to: user,
         handle: "user",
         imageURI: OTHER_MOCK_URI,
@@ -143,13 +145,23 @@ contract LensCollectVotingStrategyImplementation_LensVote is LensCollectVotingSt
       })
     );
 
+    exampleInitData = DataTypes.ProfilePublicationInitData({
+      roundAddress: address(round),
+      projectId: MOCK_PROJECT_ID,
+      applicationIndex: 1,
+      currency: address(currency),
+      referralFee: 0,
+      followerOnly: false,
+      recipient: me
+    });
+
     vm.prank(publisher);
     pubId = hub.post(
-      DataTypes.PostData({
+      LensDataTypes.PostData({
         profileId: publisherProfileId,
         contentURI: MOCK_URI,
-        collectModule: gitcoinCollectModule,
-        collectModuleInitData: getEncodedInitData(),
+        collectModule: collectModuleAddr,
+        collectModuleInitData: abi.encode(exampleInitData),
         referenceModule: address(0),
         referenceModuleInitData: ""
       })
@@ -157,93 +169,23 @@ contract LensCollectVotingStrategyImplementation_LensVote is LensCollectVotingSt
 
     currency.mint(user, 1 ether);
     vm.prank(user);
-    currency.approve(gitcoinCollectModule, type(uint256).max);
+    currency.approve(collectModuleAddr, type(uint256).max);
   }
 
   function setUp() public virtual {
     exampleVoteData.token = exampleInitData.currency;
     exampleVoteData.amount = 1 ether;
-    exampleVoteData.grantAddress = publisher;
-    exampleVoteData.projectId = bytes32(publisherProfileId);
-    exampleVoteData.pubId = bytes32(pubId);
-    exampleVoteData.collectTokenId = 1;
-
-    vm.mockCall(
-      gitcoinCollectModule,
-      abi.encodeWithSelector(IGitcoinCollectModule.getCollectNFTAmount.selector),
-      abi.encode(exampleVoteData.amount)
-    );
-  }
-
-  function roundVote() public {
-    MockRoundImplementation(roundImplementation).vote(getEncodedVotes());
+    exampleVoteData.grantAddress = exampleInitData.recipient;
+    exampleVoteData.projectId = exampleInitData.projectId;
+    exampleVoteData.applicationIndex = exampleInitData.applicationIndex;
   }
 
   function hubVote() public {
-    hub.collect(publisherProfileId, pubId, abi.encode(exampleInitData.currency, 1 ether));
-  }
-
-  function testCannotVoteTwiceWithSameNFT() public virtual {
-    vm.startPrank(user);
-    hubVote();
-    vm.expectRevert(Errors.VoteCasted.selector);
-    roundVote();
-    vm.stopPrank();
-  }
-
-  function testCannotVoteWithNonExistingNFT() public virtual {
-    vm.prank(user);
-    vm.expectRevert(Errors.VoteInvalid.selector);
-    roundVote();
-  }
-
-  function testCannotVoteWithNonExistingNFTId() public virtual {
-    vm.prank(user);
-    hubVote();
-
-    exampleVoteData.collectTokenId = 2;
-
-    vm.prank(user);
-    vm.expectRevert("ERC721: owner query for nonexistent token");
-    roundVote();
-  }
-
-  function testCannotVoteWithInvalidAmount() public virtual {
-    // mock the vote call to prevent calls from hub
-    vm.mockCall(roundImplementation, abi.encodeWithSelector(MockRoundImplementation.vote.selector), abi.encode());
-
-    vm.prank(user);
-    hubVote();
-
-    exampleVoteData.amount = 100 ether;
-
-    // clear the mock so that we can call the round implementation ourself
-    vm.clearMockedCalls();
-
-    vm.expectRevert(Errors.VoteInvalid.selector);
-    vm.prank(user);
-    roundVote();
-  }
-
-  function testCannotVoteWithInvalidToken() public virtual {
-    // mock the vote call to prevent calls from hub
-    vm.mockCall(roundImplementation, abi.encodeWithSelector(MockRoundImplementation.vote.selector), abi.encode());
-
-    vm.prank(user);
-    hubVote();
-
-    exampleVoteData.token = address(0xdead);
-
-    // clear the mock so that we can call the round implementation ourself
-    vm.clearMockedCalls();
-
-    vm.expectRevert(Errors.VoteInvalid.selector);
-    vm.prank(user);
-    roundVote();
+    hub.collect(publisherProfileId, pubId, abi.encode(exampleVoteData.token, exampleVoteData.amount));
   }
 
   function testVoteEmitsExpectedEvents() public virtual {
-    vm.expectEmit(true, true, true, true, votingStrategy);
+    vm.expectEmit(true, true, true, true, address(votingStrategy));
 
     emit Events.Voted(
       exampleVoteData.token,
@@ -251,7 +193,8 @@ contract LensCollectVotingStrategyImplementation_LensVote is LensCollectVotingSt
       user,
       exampleVoteData.grantAddress,
       exampleVoteData.projectId,
-      roundImplementation
+      exampleVoteData.applicationIndex,
+      address(round)
     );
 
     vm.prank(user);
