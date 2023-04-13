@@ -1,6 +1,6 @@
 {
   "name": "grants-collect-module",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A lens collect module for Gitcoin grants",
   "repository": "https://github.com/izziaraffaele/grants-collect-module.git",
   "author": "Izzia Raffaele <izziaraffaele@gmail.com>",
