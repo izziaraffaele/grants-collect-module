@@ -43,6 +43,7 @@ deploy-contracts :; make deploy-${network} contract=GitcoinCollectModule && \
 deploy-all :; make deploy-contracts network=${network} && \
 	make deploy-${network} contract=MerklePayoutStrategyFactory && \
 	make deploy-${network} contract=ProgramFactory && \
+	make deploy-${network} contract=ProjectRegistry && \
 	make deploy-${network} contract=RoundFactory;
 
 # execute commands

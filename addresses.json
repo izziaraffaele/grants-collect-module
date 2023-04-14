@@ -25,6 +25,7 @@
     "LensCollectVotingStrategyImplementation": "0xf9d0cfb971df854098aaa7a8ebcc80ac4b8fb4f1",
     "MerklePayoutStrategyFactory": "0x0d738f93eae8a4e614a81526969798d814aa095f",
     "RoundFactory": "0x49821900bc4a92c26fc17142baea10b490794be3",
-    "ProgramFactory": "0x679611a4df9bf645f4b099b005ec506f35a997f3"
+    "ProgramFactory": "0x679611a4df9bf645f4b099b005ec506f35a997f3",
+    "ProjectRegistry": "0x833d74951a27be359ccbf17ba5b41aa940a002f6"
   }
 }
