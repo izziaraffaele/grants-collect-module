@@ -43,9 +43,9 @@ contract LensCollectVotingStrategyImplementation is
 
   // --- Modifiers ---
 
-  modifier onlyRoundContract() {
-    if (msg.sender != roundAddress) {
-      revert Errors.NotRoundContract();
+  modifier onlyRoundContractOrModule() {
+    if (msg.sender != roundAddress && msg.sender != collectModule) {
+      revert Errors.NotRoundContractOrModule();
     }
     _;
   }
@@ -72,10 +72,6 @@ contract LensCollectVotingStrategyImplementation is
    * @param _collectModule Address of the associated collect module
    */
   function initialize(address _collectModule) external initializer {
-    if (collectModule != address(0)) {
-      revert Errors.Initialized();
-    }
-
     collectModule = _collectModule;
   }
 
@@ -96,7 +92,7 @@ contract LensCollectVotingStrategyImplementation is
   function vote(
     bytes[] calldata encodedVotes,
     address voterAddress
-  ) external payable override nonReentrant onlyRoundContract {
+  ) external payable override nonReentrant onlyRoundContractOrModule {
     /// @dev iterate over multiple donations and process each contribution
     for (uint256 i = 0; i < encodedVotes.length; i++) {
       _processContribution(encodedVotes[i], voterAddress);

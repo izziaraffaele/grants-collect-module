@@ -88,18 +88,21 @@ contract LensCollectVotingStrategyFactory_Create is LensCollectVotingStrategyFac
     assert(_votingStrategy != address(0));
   }
 
-  function testCreateInitializedVotingInstance() external {
+  function testCreateInitializesVotingInstance() external {
     address _votingStrategy = factory.create();
 
     address initCollectModule = LensCollectVotingStrategyImplementation(_votingStrategy).collectModule();
     assertEq(initCollectModule, collectModuleAddr);
   }
 
-  // function testCreateEmitExpectedEvents() {
-  //   vm.expectEmit(true, true, true, true, factory);
+  function testCreateEmitExpectedEvents() external {
+    uint256 nonce = vm.getNonce(address(factory));
+    address clone = computeCreateAddress(address(factory), nonce);
 
-  //   emit LensCollectVotingStrategyFactory.VotingContractCreated(votingContract);
+    vm.expectEmit(true, true, false, false);
 
-  //   factory.create();
-  // }
+    emit Events.VotingContractCreated(clone, votingContractAddr);
+
+    factory.create();
+  }
 }

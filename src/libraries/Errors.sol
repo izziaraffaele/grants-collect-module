@@ -5,6 +5,7 @@ library Errors {
   error Initialized();
   error InitParamsInvalid();
   error NotRoundContract();
+  error NotRoundContractOrModule();
 
   // Collect module errors
   error ModuleDataMismatch();

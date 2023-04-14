@@ -14,7 +14,7 @@ contract LensCollectVotingStrategyImplementation_Init is LensCollectVotingStrate
 
   function testCannotInitTwice() public virtual {
     vm.prank(address(round));
-    vm.expectRevert(LensErrors.Initialized.selector);
+    vm.expectRevert(Errors.Initialized.selector);
     votingStrategy.init();
   }
 
@@ -24,8 +24,8 @@ contract LensCollectVotingStrategyImplementation_Init is LensCollectVotingStrate
 
   function testCannotInitializeTwice() public virtual {
     vm.prank(deployer);
-    vm.expectRevert(LensErrors.Initialized.selector);
-    votingStrategy.init();
+    vm.expectRevert();
+    votingStrategy.initialize(collectModuleAddr);
   }
 
   function testInitializeShouldSetCollectModule() public virtual {
@@ -36,6 +36,7 @@ contract LensCollectVotingStrategyImplementation_Init is LensCollectVotingStrate
 contract LensCollectVotingStrategyImplementation_Vote is LensCollectVotingStrategyImplementationBase {
   constructor() LensCollectVotingStrategyImplementationBase() {
     currency.mint(user, 1 ether);
+
     vm.prank(user);
     currency.approve(address(votingStrategy), type(uint256).max);
   }
@@ -47,29 +48,25 @@ contract LensCollectVotingStrategyImplementation_Vote is LensCollectVotingStrate
     exampleVoteData.projectId = MOCK_PROJECT_ID;
   }
 
-  function testCannotVoteIfCalledFromNonRound() public virtual {
-    vm.expectRevert(Errors.NotRoundContract.selector);
+  function testCannotVoteWhenCallerNotRoundContractOrModule(address caller) public virtual {
+    vm.assume(caller != collectModuleAddr && caller != address(round));
+    vm.prank(caller);
+    vm.expectRevert(Errors.NotRoundContractOrModule.selector);
     votingStrategy.vote(getEncodedVoteArrayData(), user);
   }
 
   function testCannotVoteWithoutEnoughApproval() public virtual {
-    address target = address(votingStrategy);
+    currency.mint(userTwo, 1 ether);
 
-    vm.startPrank(user);
-    currency.approve(target, 0);
-    assert(currency.allowance(user, target) < 1 ether);
+    vm.startPrank(userTwo);
     vm.expectRevert("ERC20: insufficient allowance");
     round.vote(getEncodedVoteArrayData());
     vm.stopPrank();
   }
 
   function testCannotVoteWithoutEnoughBalance() public virtual {
-    address target = address(votingStrategy);
-
-    vm.startPrank(user);
-    currency.transfer(address(1), currency.balanceOf(user));
-    assertEq(currency.balanceOf(user), 0);
-    assert(currency.allowance(user, target) >= 1 ether);
+    vm.startPrank(userTwo);
+    currency.approve(address(votingStrategy), type(uint256).max);
     vm.expectRevert("ERC20: transfer amount exceeds balance");
     round.vote(getEncodedVoteArrayData());
     vm.stopPrank();
@@ -78,38 +75,27 @@ contract LensCollectVotingStrategyImplementation_Vote is LensCollectVotingStrate
   function testCannotVoteWithoutEnoughEthBalance() public virtual {
     exampleVoteData.token = address(0);
 
-    assertEq(exampleVoteData.grantAddress.balance, 0);
-    assertEq(user.balance, 0);
-
     vm.prank(user);
-    vm.expectRevert();
+    vm.expectRevert("Address: insufficient balance");
     round.vote(getEncodedVoteArrayData());
   }
 
   function testVoteTransferAmountToGrantAddress() public virtual {
-    uint256 balanceBefore = currency.balanceOf(user);
-
-    assert(balanceBefore >= 1 ether);
-    assertEq(currency.balanceOf(exampleVoteData.grantAddress), 0);
-
     vm.prank(user);
     round.vote(getEncodedVoteArrayData());
-    assertEq(currency.balanceOf(exampleVoteData.grantAddress), 1 ether);
-    assertEq(currency.balanceOf(user), balanceBefore - 1 ether);
+    assertEq(currency.balanceOf(exampleVoteData.grantAddress), exampleVoteData.amount);
+    assertEq(currency.balanceOf(user), 0);
   }
 
-  function testVoteTransferEthToGrantAddress() public virtual {
+  function testVoteTransferEthToGrantAddress() public {
     exampleVoteData.token = address(0);
-    vm.deal(user, 100 ether);
-
-    assertEq(exampleVoteData.grantAddress.balance, 0);
-    assertEq(user.balance, 100 ether);
+    vm.deal(user, exampleVoteData.amount);
 
     vm.prank(user);
-    round.vote{value: 1 ether}(getEncodedVoteArrayData());
+    round.vote{value: exampleVoteData.amount}(getEncodedVoteArrayData());
 
-    assertEq(exampleVoteData.grantAddress.balance, 1 ether);
-    assertEq(user.balance, 99 ether);
+    assertEq(exampleVoteData.grantAddress.balance, exampleVoteData.amount);
+    assertEq(user.balance, 0);
   }
 }
 
@@ -184,7 +170,7 @@ contract LensCollectVotingStrategyImplementation_LensVote is LensCollectVotingSt
     hub.collect(publisherProfileId, pubId, abi.encode(exampleVoteData.token, exampleVoteData.amount));
   }
 
-  function testVoteEmitsExpectedEvents() public virtual {
+  function testVoteEmitsExpectedEvents() public {
     vm.expectEmit(true, true, true, true, address(votingStrategy));
 
     emit Events.Voted(
