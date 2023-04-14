@@ -20,11 +20,11 @@
     "network": "mumbai",
     "LensHubProxy": "0x7582177F9E536aB0b6c721e11f383C326F2Ad1D5",
     "ModuleGlobals": "0xcbCC5b9611d22d11403373432642Df9Ef7Dd81AD",
-    "GitcoinCollectModule": "0xb922114c9a40e172688f13580e184a144706966b",
-    "LensCollectVotingStrategyFactory": "0x7fefcee90d1786cd2b7fd7bd260df3323ab5e2c2",
-    "LensCollectVotingStrategyImplementation": "0xcd53d23132a962e153fe63f01024b861dc90d080",
-    "MerklePayoutStrategyFactory": "0x81bf72b41dc91663f879a096fb7e9f97d1762e85",
-    "RoundFactory": "0xc8a1452860b05859d0298801d25e0412801b9870",
-    "ProgramFactory": "0xed12431aa103082b05198e759b4b7dfbe75ccc2e"
+    "GitcoinCollectModule": "0xb6ab8ae7af9b9f9c976bc3d8313b014f05ab3676",
+    "LensCollectVotingStrategyFactory": "0x1db4df782fc162a50ea4f850dece74013e524d39",
+    "LensCollectVotingStrategyImplementation": "0xf9d0cfb971df854098aaa7a8ebcc80ac4b8fb4f1",
+    "MerklePayoutStrategyFactory": "0x0d738f93eae8a4e614a81526969798d814aa095f",
+    "RoundFactory": "0x49821900bc4a92c26fc17142baea10b490794be3",
+    "ProgramFactory": "0x679611a4df9bf645f4b099b005ec506f35a997f3"
   }
 }

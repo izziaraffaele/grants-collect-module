@@ -32,7 +32,7 @@ anvil :; anvil -m 'test test test test test test test test test test test junk' 
 
 # deploy commands
 deploy-anvil :; ./script/deploy.sh anvil ${contract}
-deploy-sandbox :; ./script/deploy.sh sandbox ${contract} --verify
+deploy-sandbox :; ./script/deploy.sh sandbox ${contract}
 deploy-testnet :; ./script/deploy.sh testnet ${contract} --verify
 deploy-mainnet :; ./script/deploy.sh mainnet ${contract} --verify
 
